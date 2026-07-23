@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Controle de Medicamentos</title>
+  <title>Controlado</title>
+  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
 </head>
@@ -18,12 +20,12 @@
       <section class="panel-section" aria-labelledby="paciente-heading">
         <h2 id="paciente-heading" class="section-title">Paciente</h2>
         <div class="field-group">
-          <label class="field-label" for="patient-name">Nome do paciente</label>
           <input
             id="patient-name"
             class="field-input"
             type="text"
             placeholder="Digite o nome completo"
+            aria-label="Nome do paciente"
             autocomplete="off"
             spellcheck="false"
           >
@@ -32,15 +34,10 @@
 
       <section
         id="medications-section"
-        class="panel-section medications-section is-disabled"
-        aria-labelledby="medicamentos-heading"
-        aria-describedby="medications-hint"
+        class="panel-section medications-section"
+        aria-label="Medicamentos"
       >
-        <h2 id="medicamentos-heading" class="section-title">Medicamentos disponíveis</h2>
-        <p id="medications-hint" class="section-hint">
-          Digite o nome do paciente para liberar os medicamentos.
-        </p>
-        <div id="medications-grid" class="medications-grid"></div>
+        <div id="medications-grid" class="medications-catalog"></div>
       </section>
     </section>
   </main>

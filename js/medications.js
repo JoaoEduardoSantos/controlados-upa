@@ -3,322 +3,136 @@
 /**
  * Catálogo único de medicamentos disponíveis.
  * Scripts clássicos (sem ES Modules) para compatibilidade com file://.
+ * Cada item é um medicamento completo (sem options / optionGroups).
+ *
+ * Ordem de exibição dos grupos na UI (índice = prioridade).
+ * Classes ausentes no índice ficam depois, na ordem de primeira aparição.
+ *
+ * Dentro de cada grupo, os itens são ordenados por `order` (menor = primeiro).
  */
+const DRUG_CLASS_ORDER = [
+  "AINE",
+  "Opioide",
+  "Benzodiazepínico",
+  "IBP",
+  "Catecolamina",
+];
+
 const MEDICATIONS = [
   {
-    id: "adrenalina-inalatoria",
-    label: "Adrenalina / Epinefrina — Via inalatória",
-    shortLabel: "Adrenalina inalatória",
-    type: "fixed",
-    medications: [
-      {
-        name: "Adrenalina / Epinefrina",
-        presentation: "1 mg/mL",
-        route: "Inalatória",
-        quantity: "5 ampolas",
-        posology: "5 ampolas (1 mg/mL)"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
-  },
-  {
-    id: "adrenalina-ev",
-    label: "Adrenalina / Epinefrina — EV",
-    shortLabel: "Adrenalina EV",
-    type: "options",
-    medications: [
-      {
-        name: "Adrenalina / Epinefrina",
-        presentation: "1 mg/mL",
-        route: "EV",
-        quantity: "",
-        posology: ""
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "",
-    notes: "Quantidade de ampolas variável conforme necessidade clínica.",
-    requiresQuantityInput: true
-  },
-  {
     id: "cetoprofeno-ev-bolsa",
-    label: "Cetoprofeno — EV — Bolsa",
-    shortLabel: "Cetoprofeno bolsa",
-    type: "fixed",
-    medications: [
-      {
-        name: "Cetoprofeno",
-        presentation: "1 mg/mL",
-        route: "EV",
-        quantity: "1 bolsa",
-        posology: "1 bolsa (1 mg/mL)"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "Dor",
-    notes: "",
-    requiresQuantityInput: false
+    label: "Cetoprofeno",
+    name: "Cetoprofeno (1 mg/mL)",
+    drugClass: "AINE",
+    order: 1,
+    route: "EV",
+    posology: "1 bolsa",
+    dilution: "1 bolsa de 100mL, sem diluição",
+    indication: "Dor intensa",
   },
   {
-    id: "cetoprofeno-ev-100mgml",
-    label: "Cetoprofeno — EV — 100 mg/mL",
-    shortLabel: "Cetoprofeno 100 mg/mL",
-    type: "fixed",
-    medications: [
-      {
-        name: "Cetoprofeno",
-        presentation: "100 mg/mL",
-        route: "EV",
-        quantity: "100 mg/mL",
-        posology: "100 mg/mL"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "Dor",
-    notes: "",
-    requiresQuantityInput: false
-  },
-  {
-    id: "diazepam-ev",
-    label: "Diazepam — EV",
-    shortLabel: "Diazepam EV",
-    type: "fixed",
-    medications: [
-      {
-        name: "Diazepam",
-        presentation: "10 mg/mL",
-        route: "EV",
-        quantity: "1 mL",
-        posology: "1 mL (10 mg/mL) diluído e CPM"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
-  },
-  {
-    id: "diazepam-vo",
-    label: "Diazepam — VO",
-    shortLabel: "Diazepam VO",
-    type: "options",
-    medications: [
-      {
-        name: "Diazepam",
-        presentation: "",
-        route: "VO",
-        quantity: "",
-        posology: ""
-      }
-    ],
-    options: [
-      {
-        id: "5mg",
-        label: "5 mg",
-        overrides: {
-          quantity: "5 mg",
-          posology: "5 mg"
-        }
-      },
-      {
-        id: "10mg",
-        label: "10 mg",
-        overrides: {
-          quantity: "10 mg",
-          posology: "10 mg"
-        }
-      }
-    ],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
+    id: "tramadol-ev-100mg",
+    label: "Tramadol",
+    name: "Tramadol (50 mg/mL)",
+    drugClass: "Opioide",
+    order: 1,
+    route: "EV/IM",
+    posology: "1 ampola de 2 mL (100 mg)",
+    dilution:
+      "Se EV: 1 ampola de 2 mL (100 mg) diluída em 100 mL de SF 0,9%, EV lento; Se IM: 1 ampola de 2mL, IM, sem diluição",
+    indication: "Dor intensa",
   },
   {
     id: "morfina-ev",
-    label: "Morfina — EV",
-    shortLabel: "Morfina EV",
-    type: "fixed",
-    medications: [
-      {
-        name: "Morfina",
-        presentation: "10 mg/mL",
-        route: "EV",
-        quantity: "1 mL",
-        posology: "1 mL (10 mg/mL) diluído e CPM"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
+    label: "Morfina",
+    name: "Morfina (10 mg/mL)",
+    drugClass: "Opioide",
+    order: 2,
+    route: "EV",
+    posology: "1 ampola de 1 mL (10 mg)",
+    dilution: "Diluir 1 ampola de 1 mL em 9mL de SF 0,9%",
+    indication: "Dor intensa",
+  },
+  {
+    id: "fentanil-ev-sedacao",
+    label: "Fentanil",
+    name: "Fentanil (0,0785 mg/mL)",
+    drugClass: "Opioide",
+    order: 3,
+    route: "EV",
+    posology: "4 ampolas",
+    dilution:
+      "4 ampolas de 5 mL (total de 20 mL) diluídas em 180mL de SF 0,9%, EV em BIC",
+    indication: "Sedação contínua",
+  },
+  {
+    id: "diazepam-vo-5mg",
+    label: "Diazepam",
+    name: "Diazepam (5 mg)",
+    drugClass: "Benzodiazepínico",
+    order: 1,
+    route: "5mg VO",
+    posology: "1 comprimido de 5 mg",
+    dilution: "Sem diluição",
+    indication: "Agitação e ansiedade",
+  },
+  {
+    id: "diazepam-vo-10mg",
+    label: "Diazepam",
+    name: "Diazepam (10 mg)",
+    drugClass: "Benzodiazepínico",
+    order: 2,
+    route: "10mg VO",
+    posology: "1 comprimido de 10 mg",
+    dilution: "Sem diluição",
+    indication: "Agitação e ansiedade",
+  },
+  {
+    id: "diazepam-ev",
+    label: "Diazepam",
+    name: "Diazepam (5 mg/mL)",
+    drugClass: "Benzodiazepínico",
+    order: 3,
+    route: "EV/IM",
+    posology: "1 ampola de 2 mL (10 mg)",
+    dilution: "1 ampola (2mL) em 8mL de SF 0,9%",
+    indication: "Agitação e ansiedade",
+  },
+  {
+    id: "midazolam-ev-sedacao",
+    label: "Midazolam",
+    name: "Midazolam (1 mg/mL)",
+    drugClass: "Benzodiazepínico",
+    order: 4,
+    route: "EV",
+    posology: "4 ampolas",
+    dilution:
+      "4 ampolas de 5 mL (total de 20 mL) diluídas em 180mL de SF 0,9%, EV em BIC",
+    indication: "Sedação contínua",
   },
   {
     id: "omeprazol-ev",
-    label: "Omeprazol — EV",
-    shortLabel: "Omeprazol EV",
-    type: "fixed",
-    medications: [
-      {
-        name: "Omeprazol",
-        presentation: "40 mg/ampola",
-        route: "EV",
-        quantity: "1 ampola + diluente próprio",
-        posology: "40 mg/ampola + diluente próprio"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
+    label: "Omeprazol",
+    name: "Omeprazol (40 mg/frasco-ampola)",
+    drugClass: "IBP",
+    order: 1,
+    route: "EV",
+    posology: "1 frasco-ampola (40 mg)",
+    dilution: "Reconstituir 1  frasco-ampola em 10mL de SF 0,9%",
+    indication: "Epigastralgia",
   },
   {
-    // Documento-fonte utilizava a grafia "MIDAZOLAN"; no catálogo padronizamos para "Midazolam".
-    id: "sedacao-midazolam-fentanil",
-    label: "Sedação contínua — Midazolam + Fentanil",
-    shortLabel: "Sedação Midazolam + Fentanil",
-    type: "combined",
-    medications: [
-      {
-        name: "Midazolam",
-        presentation: "5 mg/mL",
-        route: "EV",
-        quantity: "4 ampolas",
-        posology: "4 ampolas (5 mg/mL) = total 40 mL"
-      },
-      {
-        name: "Fentanil",
-        presentation: "0,0785 mg/mL",
-        route: "EV",
-        quantity: "4 ampolas",
-        posology: "4 ampolas (0,0785 mg/mL) = total 40 mL"
-      }
-    ],
-    options: [],
-    optionGroups: [],
-    indication: "Sedação contínua - paciente em VM",
-    notes: "",
-    requiresQuantityInput: false
+    id: "adrenalina-ev",
+    label: "Adrenalina / Epinefrina",
+    name: "Adrenalina / Epinefrina (1 mg/mL)",
+    drugClass: "Catecolamina",
+    order: 1,
+    route: "EV",
+    posology: "1 ampola de 1 mL (1 mg)",
+    dilution: "Sem diluição",
+    indication: "PCR",
   },
-  {
-    id: "tramadol-ev",
-    label: "Tramadol — EV",
-    shortLabel: "Tramadol EV",
-    type: "options",
-    medications: [
-      {
-        name: "Tramadol",
-        presentation: "",
-        route: "EV",
-        quantity: "",
-        posology: ""
-      }
-    ],
-    options: [
-      {
-        id: "50mg",
-        label: "1 mL (50 mg)",
-        overrides: {
-          presentation: "50 mg",
-          quantity: "1 mL",
-          posology: "1 mL (50 mg)"
-        }
-      },
-      {
-        id: "100mg",
-        label: "2 mL (100 mg)",
-        overrides: {
-          presentation: "100 mg",
-          quantity: "2 mL",
-          posology: "2 mL (100 mg)"
-        }
-      }
-    ],
-    optionGroups: [],
-    indication: "",
-    notes: "",
-    requiresQuantityInput: false
-  },
-  {
-    id: "tramadol-im-sc",
-    label: "Tramadol — IM / SC",
-    shortLabel: "Tramadol IM/SC",
-    type: "options",
-    medications: [
-      {
-        name: "Tramadol",
-        presentation: "",
-        route: "",
-        quantity: "",
-        posology: ""
-      }
-    ],
-    options: [],
-    optionGroups: [
-      {
-        id: "route",
-        label: "Via",
-        required: true,
-        options: [
-          {
-            id: "im",
-            label: "IM",
-            overrides: {
-              route: "IM"
-            }
-          },
-          {
-            id: "sc",
-            label: "SC",
-            overrides: {
-              route: "SC"
-            }
-          }
-        ]
-      },
-      {
-        id: "dose",
-        label: "Dose",
-        required: true,
-        options: [
-          {
-            id: "50mg",
-            label: "1 mL (50 mg)",
-            overrides: {
-              presentation: "50 mg",
-              quantity: "1 mL",
-              posology: "1 mL (50 mg)"
-            }
-          },
-          {
-            id: "100mg",
-            label: "2 mL (100 mg)",
-            overrides: {
-              presentation: "100 mg",
-              quantity: "2 mL",
-              posology: "2 mL (100 mg)"
-            }
-          }
-        ]
-      }
-    ],
-    indication: "Dor refratária",
-    notes: "",
-    requiresQuantityInput: false
-  }
 ];
-
-const SUPPORTED_MEDICATION_TYPES = ["fixed", "options", "combined"];
 
 function validateMedicationCatalog() {
   const errors = [];
@@ -350,46 +164,16 @@ function validateMedicationCatalog() {
       errors.push(`${prefix} (${item.id || "?"}): label obrigatório.`);
     }
 
-    if (!item.type || typeof item.type !== "string") {
-      errors.push(`${prefix} (${item.id || "?"}): type obrigatório.`);
-    } else if (!SUPPORTED_MEDICATION_TYPES.includes(item.type)) {
-      errors.push(
-        `${prefix} (${item.id || "?"}): type inválido "${item.type}".`
-      );
+    if (!item.name || typeof item.name !== "string") {
+      errors.push(`${prefix} (${item.id || "?"}): name obrigatório.`);
     }
 
-    if (!Array.isArray(item.medications) || item.medications.length === 0) {
-      errors.push(
-        `${prefix} (${item.id || "?"}): medications deve ser um array não vazio.`
-      );
-    } else {
-      item.medications.forEach((med, medIndex) => {
-        if (!med || typeof med !== "object" || !med.name) {
-          errors.push(
-            `${prefix} (${item.id || "?"}).medications[${medIndex}]: name obrigatório.`
-          );
-        }
-      });
+    if (!item.drugClass || typeof item.drugClass !== "string") {
+      errors.push(`${prefix} (${item.id || "?"}): drugClass obrigatório.`);
     }
 
-    if (Array.isArray(item.optionGroups)) {
-      item.optionGroups.forEach((group, groupIndex) => {
-        if (!group || typeof group !== "object") {
-          errors.push(
-            `${prefix} (${item.id || "?"}).optionGroups[${groupIndex}]: grupo inválido.`
-          );
-          return;
-        }
-
-        if (
-          group.required &&
-          (!Array.isArray(group.options) || group.options.length === 0)
-        ) {
-          errors.push(
-            `${prefix} (${item.id || "?"}).optionGroups[${groupIndex}] (${group.id || "?"}): grupo obrigatório sem opções.`
-          );
-        }
-      });
+    if (typeof item.order !== "number" || !Number.isFinite(item.order)) {
+      errors.push(`${prefix} (${item.id || "?"}): order numérico obrigatório.`);
     }
   });
 

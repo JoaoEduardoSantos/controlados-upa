@@ -11,7 +11,7 @@ const PDF_PAGE = {
   height: 297,
   marginX: 14,
   contentWidth: 182,
-  contentRight: 196
+  contentRight: 196,
 };
 
 const PDF_LAYOUT = {
@@ -22,30 +22,32 @@ const PDF_LAYOUT = {
 
   sideLeft: 14,
   sideWidth: 44,
-  dividerX: 65,
+  dividerX: 60,
 
-  mainX: 73,
+  mainX: 66,
   mainRight: 196,
-  mainWidth: 123,
+  mainWidth: 130,
+  medLabelWidth: 34,
 
   titleTop: 49,
   medicationTop: 72,
   posologyTop: 94,
 
-  signatureY: 116,
-  dividerBottom: 125,
+  signatureY: 124,
+  dividerBottom: 110,
 
   footerBottom: 146,
   cutY: 148.5,
 
-  logoMaxWidth: 38.5,
-  logoMaxHeight: 27.5,
-  textBlockX: 57,
+  logoMaxWidth: 40,
+  logoMaxHeight: 28,
+  logoX: 15,
+  textBlockX: 60,
 
   signatureWidth: 66,
 
   footerMaxWidth: 112,
-  footerMaxHeight: 9
+  footerMaxHeight: 9,
 };
 
 const PDF_COLOR = {
@@ -54,10 +56,55 @@ const PDF_COLOR = {
   tertiary: [138, 144, 153], // #8A9099
   muted: [113, 120, 130], // endereço / telefone
   date: [115, 122, 132], // #737A84
+  posology: [75, 85, 99], // #4B5563
   divider: [225, 228, 232], // #E1E4E8
   cut: [174, 180, 188], // #AEB4BC
   white: [255, 255, 255],
-  black: [0, 0, 0]
+  black: [0, 0, 0],
+};
+
+/** Estilos da coluna de valores do bloco de medicação (rótulos ficam intactos). */
+const MEDICATION_VALUE_STYLE = {
+  medication: {
+    style: "bold",
+    size: 13.2,
+    color: PDF_COLOR.primary,
+    lineHeight: 5.3,
+    maxLines: 2,
+    afterGap: 2.0
+  },
+  route: {
+    style: "normal",
+    size: 9,
+    color: PDF_COLOR.secondary,
+    lineHeight: 4.0,
+    maxLines: 2,
+    afterGap: 2.0
+  },
+  posology: {
+    style: "semibold",
+    size: 9.4,
+    color: PDF_COLOR.posology,
+    lineHeight: 4.1,
+    maxLines: 3,
+    afterGap: 2.0
+  },
+  dilution: {
+    style: "normal",
+    size: 9,
+    color: PDF_COLOR.secondary,
+    lineHeight: 3.9,
+    maxLines: 4,
+    afterGap: 2.0
+  },
+  indication: {
+    style: "normal",
+    size: 9,
+    color: PDF_COLOR.secondary,
+    lineHeight: 3.9,
+    maxLines: 4,
+    afterGap: 2.0
+  }
 };
 
 /** Tracking negativo global (mm) — aproxima o kerning editorial do PuxaFicha. */
@@ -71,7 +118,7 @@ const PDF_FONT_FILES = {
   normal: "./fonts/SFPro-Regular.ttf",
   medium: "./fonts/SFPro-Medium.ttf",
   semibold: "./fonts/SFPro-Semibold.ttf",
-  bold: "./fonts/SFPro-Bold.ttf"
+  bold: "./fonts/SFPro-Bold.ttf",
 };
 
 function getJsPdfConstructor() {
@@ -89,24 +136,24 @@ function getJsPdfConstructor() {
 function isValidMedicationDocumentModel(model) {
   return Boolean(
     model &&
-      typeof model === "object" &&
-      model.unit &&
-      typeof model.unit.name === "string" &&
-      model.unit.name.trim() !== "" &&
-      typeof model.unit.type === "string" &&
-      model.unit.type.trim() !== "" &&
-      typeof model.patientName === "string" &&
-      model.patientName.trim() !== "" &&
-      Array.isArray(model.medications) &&
-      model.medications.length > 0 &&
-      model.medications.every(
-        (medication) =>
-          medication &&
-          typeof medication.name === "string" &&
-          medication.name.trim() !== ""
-      ) &&
-      typeof model.date === "string" &&
-      typeof model.time === "string"
+    typeof model === "object" &&
+    model.unit &&
+    typeof model.unit.name === "string" &&
+    model.unit.name.trim() !== "" &&
+    typeof model.unit.type === "string" &&
+    model.unit.type.trim() !== "" &&
+    typeof model.patientName === "string" &&
+    model.patientName.trim() !== "" &&
+    Array.isArray(model.medications) &&
+    model.medications.length > 0 &&
+    model.medications.every(
+      (medication) =>
+        medication &&
+        typeof medication.name === "string" &&
+        medication.name.trim() !== "",
+    ) &&
+    typeof model.date === "string" &&
+    typeof model.time === "string",
   );
 }
 
@@ -129,7 +176,7 @@ function buildMedicationPdfFilename(documentModel) {
     slugifyPdfToken(documentModel.patientName).slice(0, 48) || "paciente";
   const medication =
     slugifyPdfToken(
-      documentModel.medications.map((item) => item.name).join(" ")
+      documentModel.medications.map((item) => item.name).join(" "),
     ).slice(0, 56) || "medicamento";
   const date = slugifyPdfToken(documentModel.date) || "data";
 
@@ -159,7 +206,7 @@ function fitImageWithinBox(naturalWidth, naturalHeight, maxWidth, maxHeight) {
 
   return {
     width,
-    height
+    height,
   };
 }
 
@@ -167,7 +214,8 @@ function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result || ""));
-    reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
+    reader.onerror = () =>
+      reject(reader.error || new Error("FileReader failed"));
     reader.readAsDataURL(blob);
   });
 }
@@ -195,7 +243,7 @@ async function buildImagePayloadFromDataUrl(dataUrl) {
     dataUrl,
     format: getImageFormatFromDataUrl(dataUrl),
     width,
-    height
+    height,
   };
 }
 
@@ -269,7 +317,7 @@ function loadImageViaCanvas(path) {
           dataUrl,
           format: getImageFormatFromDataUrl(dataUrl),
           width,
-          height
+          height,
         });
       } catch (error) {
         reject(error);
@@ -313,7 +361,7 @@ function loadImageAsDataUrl(src) {
         () => loadImageViaFetch(path),
         () => loadImageViaXhr(path),
         () => loadImageViaCanvas(path),
-        () => loadEmbeddedImageFallback(path)
+        () => loadEmbeddedImageFallback(path),
       ];
 
       for (const attempt of attempts) {
@@ -346,10 +394,7 @@ function arrayBufferToBase64(buffer) {
   let binary = "";
 
   for (let i = 0; i < bytes.length; i += chunkSize) {
-    binary += String.fromCharCode.apply(
-      null,
-      bytes.subarray(i, i + chunkSize)
-    );
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
   }
 
   return btoa(binary);
@@ -413,7 +458,7 @@ function loadFontBase64(src) {
       const attempts = [
         () => loadFontBase64ViaFetch(path),
         () => loadFontBase64ViaXhr(path),
-        () => Promise.resolve(loadEmbeddedFontFallback(path))
+        () => Promise.resolve(loadEmbeddedFontFallback(path)),
       ];
 
       for (const attempt of attempts) {
@@ -468,7 +513,7 @@ async function ensureSfProFonts(doc) {
 
   if (!doc.__sfProFontsLoaded) {
     console.warn(
-      `[pdf] SF Pro incompleto (${loadedCount}/${entries.length}); fallback Helvetica.`
+      `[pdf] SF Pro incompleto (${loadedCount}/${entries.length}); fallback Helvetica.`,
     );
   }
 
@@ -514,65 +559,14 @@ function pdfDrawRightAlignedLines(doc, lines, x, y, lineHeight) {
 }
 
 /**
- * Quantidade física para a linha editorial (sem repetir a concentração).
- * Ex.: "5 ampolas (1 mg/mL)" + presentation "1 mg/mL" → "5 ampolas"
+ * Valor de posologia para o PDF.
  */
-function formatPhysicalQuantity(medication) {
-  const quantity = String(medication.quantity || "").trim();
-  const presentation = String(medication.presentation || "").trim();
-
-  if (!quantity) {
-    return "";
-  }
-
-  if (presentation) {
-    const parenSuffix = ` (${presentation})`;
-    if (quantity.endsWith(parenSuffix)) {
-      return quantity.slice(0, -parenSuffix.length).trim();
-    }
-
-    const dashSuffix = ` - ${presentation}`;
-    if (quantity.endsWith(dashSuffix)) {
-      return quantity.slice(0, -dashSuffix.length).trim();
-    }
-
-    // "4 ampolas (5 mg/mL) = total 40 mL" → "4 ampolas"
-    const embedded = quantity.match(
-      new RegExp(
-        `^(.+?)\\s*\\(${presentation.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\)`
-      )
-    );
-    if (embedded) {
-      return embedded[1].trim();
-    }
-  }
-
-  return quantity;
-}
-
-function formatMedicationDetails(medication, physicalQuantity) {
-  const details = [];
-  const presentation = String(medication.presentation || "").trim();
-  const route = String(medication.route || "").trim();
-  const qty = String(physicalQuantity || "").trim();
-
-  if (
-    presentation &&
-    presentation !== qty &&
-    !qty.includes(presentation)
-  ) {
-    details.push(presentation);
-  }
-
-  if (route) {
-    details.push(`Via ${route.toLowerCase()}`);
-  }
-
-  return details.join(" · ");
+function formatPosologyValue(medication) {
+  return String(medication.posology || "").trim();
 }
 
 function drawInstitutionalHeader(doc, documentModel, logoImage) {
-  const left = PDF_PAGE.marginX;
+  const left = PDF_LAYOUT.logoX;
   const textX = PDF_LAYOUT.textBlockX;
   const unit = documentModel.unit;
   const groupTop = PDF_LAYOUT.headerTop;
@@ -585,7 +579,7 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
       logoImage.width,
       logoImage.height,
       PDF_LAYOUT.logoMaxWidth,
-      PDF_LAYOUT.logoMaxHeight
+      PDF_LAYOUT.logoMaxHeight,
     );
     logoHeight = logoBox.height;
   }
@@ -596,16 +590,19 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
   const address = String(unit.address || "").trim();
   const phone = String(unit.phone || "").trim();
 
-  const badgePaddingX = 2;
-  const badgePaddingY = 0.85;
-  const badgeFontSize = 7.8;
-  const afterBadge = 0.98;
+  const badgePaddingX = 1.1;
+  const badgePaddingY = 0.65;
+  const badgeFontSize = 6.5;
+  const badgeCharSpace = -0.06;
+  const afterBadge = 1.45;
   const afterName = 0.98;
-  const afterCity = 0.63;
-  const afterAddress = 0.52;
-  const nameLine = 4.5;
-  const cityLine = 3.3;
-  const metaLine = 3.05;
+  const afterCity = 0.76;
+  const afterAddress = 0.62;
+  const nameFontSize = 18;
+  const nameLine = 6.5;
+  const nameCharSpace = -0.45;
+  const cityLine = 3.96;
+  const metaLine = 3.66;
   let textBlockHeight = 0;
 
   if (badgeLabel) {
@@ -636,7 +633,7 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
         left,
         logoY,
         logoBox.width,
-        logoBox.height
+        logoBox.height,
       );
     } catch (error) {
       console.warn("[pdf] Falha ao inserir o logo institucional.", error);
@@ -645,6 +642,7 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
 
   if (badgeLabel) {
     pdfSetFont(doc, "bold", badgeFontSize, PDF_COLOR.white);
+    doc.setCharSpace(badgeCharSpace);
     const badgeTextWidth = doc.getTextWidth(badgeLabel);
     const badgeWidth = badgeTextWidth + badgePaddingX * 2;
     const badgeHeight = badgeFontSize * 0.3528 + badgePaddingY * 2;
@@ -653,16 +651,19 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
     doc.setFillColor(
       PDF_COLOR.primary[0],
       PDF_COLOR.primary[1],
-      PDF_COLOR.primary[2]
+      PDF_COLOR.primary[2],
     );
-    doc.roundedRect(textX, badgeTop, badgeWidth, badgeHeight, 0.55, 0.55, "F");
-    doc.text(badgeLabel, textX + badgePaddingX, badgeTop + badgeHeight - 1.35);
+    doc.roundedRect(textX, badgeTop, badgeWidth, badgeHeight, 0.35, 0.35, "F");
+    doc.text(badgeLabel, textX + badgePaddingX, badgeTop + badgeHeight - 1.0);
+    doc.setCharSpace(PDF_CHAR_SPACE);
     y += badgeHeight + afterBadge;
   }
 
   if (name) {
-    pdfSetFont(doc, "bold", 12.5, PDF_COLOR.primary);
-    doc.text(name, textX, y + 3.5);
+    pdfSetFont(doc, "bold", nameFontSize, PDF_COLOR.primary);
+    doc.setCharSpace(nameCharSpace);
+    doc.text(name, textX, y + 4.8);
+    doc.setCharSpace(PDF_CHAR_SPACE);
     y += nameLine + afterName;
   }
 
@@ -687,82 +688,61 @@ function drawInstitutionalHeader(doc, documentModel, logoImage) {
   return Math.max(groupTop + groupHeight, y);
 }
 
+function pdfBaselineFromTop(fontSizePt, topY) {
+  // jsPDF posiciona pela baseline; ~0,75 do em converte pt → mm de altura das maiúsculas.
+  return topY + fontSizePt * 0.3528 * 0.75;
+}
+
 function drawMainDivider(doc) {
   doc.setDrawColor(
     PDF_COLOR.divider[0],
     PDF_COLOR.divider[1],
-    PDF_COLOR.divider[2]
+    PDF_COLOR.divider[2],
   );
   doc.setLineWidth(0.25);
   doc.line(
     PDF_LAYOUT.dividerX,
     PDF_LAYOUT.mainTop,
     PDF_LAYOUT.dividerX,
-    PDF_LAYOUT.dividerBottom
+    PDF_LAYOUT.dividerBottom,
   );
 }
 
 function drawSideRail(doc, documentModel) {
   const right = PDF_LAYOUT.dividerX - 7;
   const sideWidth = PDF_LAYOUT.sideWidth;
-  let y = PDF_LAYOUT.mainTop + 2;
+  const labelSize = 7;
+  let y = pdfBaselineFromTop(labelSize, PDF_LAYOUT.mainTop);
 
-  pdfSetFont(doc, "semibold", 7, PDF_COLOR.tertiary);
+  pdfSetFont(doc, "semibold", labelSize, PDF_COLOR.tertiary);
   doc.text("PACIENTE", right, y, { align: "right" });
 
   y += 7;
 
   pdfSetFont(doc, "bold", 12.8, PDF_COLOR.primary);
   const patientLines = doc
-    .splitTextToSize(
-      String(documentModel.patientName || "").trim(),
-      sideWidth
-    )
+    .splitTextToSize(String(documentModel.patientName || "").trim(), sideWidth)
     .slice(0, 3);
   y = pdfDrawRightAlignedLines(doc, patientLines, right, y, 5.2);
-
-  y += 13;
-
-  const indication = String(documentModel.indication || "").trim();
-  if (indication) {
-    pdfSetFont(doc, "semibold", 7, PDF_COLOR.tertiary);
-    doc.text("INDICAÇÃO", right, y, { align: "right" });
-
-    y += 6;
-
-    pdfSetFont(doc, "normal", 8.8, PDF_COLOR.secondary);
-    const indicationLines = doc
-      .splitTextToSize(indication, sideWidth)
-      .slice(0, 4);
-    y = pdfDrawRightAlignedLines(doc, indicationLines, right, y, 4.2);
-    y += 8;
-  }
-
-  const notes = String(documentModel.notes || "").trim();
-  if (notes) {
-    pdfSetFont(doc, "semibold", 7, PDF_COLOR.tertiary);
-    doc.text("OBSERVAÇÕES", right, y, { align: "right" });
-
-    y += 6;
-
-    pdfSetFont(doc, "normal", 8.2, PDF_COLOR.secondary);
-    const noteLines = doc.splitTextToSize(notes, sideWidth).slice(0, 4);
-    pdfDrawRightAlignedLines(doc, noteLines, right, y, 3.8);
-  }
 }
 
 function drawMainTitle(doc, documentModel) {
   const x = PDF_LAYOUT.mainX;
-  let y = PDF_LAYOUT.titleTop;
+  const titleSize = 19;
+  const titleCharSpace = -0.38;
+  const titleLineHeight = 6.8;
+  let y = pdfBaselineFromTop(titleSize, PDF_LAYOUT.mainTop);
 
-  const title = "Solicitação de Medicamento Controlado à Farmácia";
-  pdfSetFont(doc, "bold", 17.5, PDF_COLOR.primary);
+  const title = "Solicitação de Medicamento Controlado";
+  pdfSetFont(doc, "bold", titleSize, PDF_COLOR.primary);
+  doc.setCharSpace(titleCharSpace);
   const titleLines = doc
     .splitTextToSize(title, PDF_LAYOUT.mainWidth)
     .slice(0, 2);
   doc.text(titleLines, x, y);
+  doc.setCharSpace(PDF_CHAR_SPACE);
 
-  y += titleLines.length * 6.2 + 1.5;
+  y += (titleLines.length - 1) * titleLineHeight + 5.9;
 
   const date = String(documentModel.date || "").trim();
   const time = String(documentModel.time || "").trim();
@@ -777,99 +757,101 @@ function drawMainTitle(doc, documentModel) {
   return y + 4;
 }
 
-function drawDottedLeader(doc, startX, endX, y) {
-  if (endX <= startX + 4) {
-    return;
-  }
+function drawMedicationFieldRow(doc, label, value, startY, options = {}) {
+  const text = String(value || "").trim();
+  const allowEmpty = Boolean(options.allowEmpty);
 
-  pdfSetFont(doc, "normal", 8, PDF_COLOR.secondary);
-  const gap = doc.getTextWidth(". ") || 1.6;
-  const count = Math.floor((endX - startX) / gap);
-
-  if (count < 3) {
-    return;
-  }
-
-  doc.text(". ".repeat(count).trimEnd(), startX, y);
-}
-
-function drawMedicationRequest(doc, medication, startY) {
-  const x = PDF_LAYOUT.mainX;
-  const right = PDF_LAYOUT.mainRight;
-  let y = startY;
-
-  pdfSetFont(doc, "semibold", 7.2, PDF_COLOR.tertiary);
-  doc.text("MEDICAMENTO", x, y);
-
-  y += 7;
-
-  const name = String(medication.name || "").trim();
-  const quantity = formatPhysicalQuantity(medication);
-
-  pdfSetFont(doc, "bold", 11.8, PDF_COLOR.primary);
-  const qtyWidth = quantity ? doc.getTextWidth(quantity) : 0;
-
-  pdfSetFont(doc, "bold", 13.5, PDF_COLOR.primary);
-  const nameMaxWidth = Math.max(
-    40,
-    PDF_LAYOUT.mainWidth - (qtyWidth > 0 ? qtyWidth + 12 : 0)
-  );
-  const nameLines = doc.splitTextToSize(name, nameMaxWidth).slice(0, 2);
-  doc.text(nameLines, x, y);
-
-  if (quantity) {
-    pdfSetFont(doc, "bold", 11.8, PDF_COLOR.primary);
-    doc.text(quantity, right, y, { align: "right" });
-
-    if (nameLines.length === 1) {
-      pdfSetFont(doc, "bold", 13.5, PDF_COLOR.primary);
-      const nameWidth = doc.getTextWidth(nameLines[0]);
-      pdfSetFont(doc, "bold", 11.8, PDF_COLOR.primary);
-      const qtyW = doc.getTextWidth(quantity);
-
-      drawDottedLeader(doc, x + nameWidth + 3, right - qtyW - 3, y);
-    }
-  }
-
-  y += nameLines.length * 5.3 + 3;
-
-  const details = formatMedicationDetails(medication, quantity);
-  if (details) {
-    pdfSetFont(doc, "normal", 8.8, PDF_COLOR.secondary);
-    doc.text(details, x, y);
-    y += 4.2;
-  }
-
-  return y + 5.5;
-}
-
-function drawPosology(doc, medication, startY) {
-  const posology = String(medication.posology || "").trim();
-
-  if (!posology) {
+  if (!text && !allowEmpty) {
     return startY;
   }
 
-  const x = PDF_LAYOUT.mainX;
-  let y = Math.max(startY, PDF_LAYOUT.posologyTop);
-
-  // Com múltiplos itens, não força a banda fixa depois do primeiro.
-  if (startY > PDF_LAYOUT.posologyTop) {
-    y = startY;
-  }
+  const labelX = PDF_LAYOUT.mainX;
+  const valueX = PDF_LAYOUT.mainX + PDF_LAYOUT.medLabelWidth;
+  const valueWidth = Math.max(24, PDF_LAYOUT.mainRight - valueX);
+  const valueSize = options.valueSize || 10.5;
+  const valueStyle = options.valueStyle || "bold";
+  const valueColor = options.valueColor || PDF_COLOR.primary;
+  const lineHeight = options.lineHeight || 4.8;
+  const maxLines = options.maxLines || 2;
 
   pdfSetFont(doc, "semibold", 7.2, PDF_COLOR.tertiary);
-  doc.text("POSOLOGIA", x, y);
+  doc.text(label, labelX, startY);
 
-  y += 6;
+  if (text) {
+    pdfSetFont(doc, valueStyle, valueSize, valueColor);
+    const lines = doc.splitTextToSize(text, valueWidth).slice(0, maxLines);
+    doc.text(lines, valueX, startY);
+    return (
+      startY +
+      Math.max(lines.length, 1) * lineHeight +
+      (options.afterGap || 1.6)
+    );
+  }
 
-  pdfSetFont(doc, "normal", 9.2, PDF_COLOR.primary);
-  const lines = doc
-    .splitTextToSize(posology, PDF_LAYOUT.mainWidth)
-    .slice(0, 3);
-  doc.text(lines, x, y);
+  return startY + lineHeight + (options.afterGap || 1.6);
+}
 
-  return y + lines.length * 4.2;
+function drawMedicationBlock(doc, medication, startY, indication) {
+  let y = startY;
+  const styles = MEDICATION_VALUE_STYLE;
+
+  y = drawMedicationFieldRow(doc, "MEDICAÇÃO", medication.name, y, {
+    valueStyle: styles.medication.style,
+    valueSize: styles.medication.size,
+    valueColor: styles.medication.color,
+    lineHeight: styles.medication.lineHeight,
+    maxLines: styles.medication.maxLines,
+    afterGap: styles.medication.afterGap
+  });
+
+  y = drawMedicationFieldRow(
+    doc,
+    "POSOLOGIA",
+    formatPosologyValue(medication),
+    y,
+    {
+      valueStyle: styles.posology.style,
+      valueSize: styles.posology.size,
+      valueColor: styles.posology.color,
+      lineHeight: styles.posology.lineHeight,
+      maxLines: styles.posology.maxLines,
+      afterGap: styles.posology.afterGap
+    }
+  );
+
+  y = drawMedicationFieldRow(doc, "VIA DE ADM", medication.route, y, {
+    valueStyle: styles.route.style,
+    valueSize: styles.route.size,
+    valueColor: styles.route.color,
+    lineHeight: styles.route.lineHeight,
+    maxLines: styles.route.maxLines,
+    afterGap: styles.route.afterGap
+  });
+
+  // `null` omite a linha (itens intermediários em listas com vários medicamentos).
+  if (indication !== null && indication !== undefined) {
+    y = drawMedicationFieldRow(doc, "INDICAÇÃO", indication, y, {
+      valueStyle: styles.indication.style,
+      valueSize: styles.indication.size,
+      valueColor: styles.indication.color,
+      lineHeight: styles.indication.lineHeight,
+      maxLines: styles.indication.maxLines,
+      afterGap: styles.indication.afterGap,
+      allowEmpty: true
+    });
+  }
+
+  y = drawMedicationFieldRow(doc, "DILUIÇÃO", medication.dilution, y, {
+    valueStyle: styles.dilution.style,
+    valueSize: styles.dilution.size,
+    valueColor: styles.dilution.color,
+    lineHeight: styles.dilution.lineHeight,
+    maxLines: styles.dilution.maxLines,
+    afterGap: styles.dilution.afterGap,
+    allowEmpty: true
+  });
+
+  return y;
 }
 
 function drawSignatureBlock(doc, startY) {
@@ -879,21 +861,24 @@ function drawSignatureBlock(doc, startY) {
   let y = Math.max(startY, PDF_LAYOUT.signatureY);
 
   // Não invade a faixa do rodapé.
-  y = Math.min(y, PDF_LAYOUT.footerBottom - PDF_LAYOUT.footerMaxHeight - 14);
+  y = Math.min(y, PDF_LAYOUT.footerBottom - PDF_LAYOUT.footerMaxHeight - 6);
 
   doc.setDrawColor(
-    PDF_COLOR.primary[0],
-    PDF_COLOR.primary[1],
-    PDF_COLOR.primary[2]
+    PDF_COLOR.divider[0],
+    PDF_COLOR.divider[1],
+    PDF_COLOR.divider[2],
   );
-  doc.setLineWidth(0.35);
+  doc.setLineWidth(0.25);
   doc.line(stampLeft, y, right, y);
 
+  const stampLabel = "Carimbo e assinatura médica";
   pdfSetFont(doc, "normal", 7.5, PDF_COLOR.secondary);
-  doc.text("Carimbo e assinatura médica", right, y + 4, { align: "right" });
-  doc.text("CRM", right, y + 7.4, { align: "right" });
+  // Sem tracking: alinha a borda direita do texto exatamente ao fim da linha.
+  doc.setCharSpace(0);
+  doc.text(stampLabel, right, y + 4, { align: "right" });
+  doc.setCharSpace(PDF_CHAR_SPACE);
 
-  return y + 10;
+  return y + 6;
 }
 
 function drawFooter(doc, footerImage) {
@@ -905,7 +890,7 @@ function drawFooter(doc, footerImage) {
     footerImage.width,
     footerImage.height,
     Math.min(PDF_PAGE.contentWidth, PDF_LAYOUT.footerMaxWidth),
-    PDF_LAYOUT.footerMaxHeight
+    PDF_LAYOUT.footerMaxHeight,
   );
 
   const footerTop = PDF_LAYOUT.footerBottom - footerBox.height;
@@ -919,7 +904,7 @@ function drawFooter(doc, footerImage) {
       footerX,
       footerTop,
       footerBox.width,
-      footerBox.height
+      footerBox.height,
     );
   } catch (error) {
     console.warn("[pdf] Falha ao inserir o rodapé institucional.", error);
@@ -945,14 +930,17 @@ function drawMedicationCopy(doc, documentModel, assets) {
   drawMainTitle(doc, documentModel);
 
   let y = PDF_LAYOUT.medicationTop;
+  const indication = String(documentModel.indication || "").trim();
+  const medications = documentModel.medications;
 
-  documentModel.medications.forEach((medication, index) => {
+  medications.forEach((medication, index) => {
     if (index > 0) {
-      y += 7;
+      y += 5;
     }
 
-    y = drawMedicationRequest(doc, medication, y);
-    y = drawPosology(doc, medication, y);
+    // INDICAÇÃO sempre no último item (rótulo visível mesmo sem texto).
+    const rowIndication = index === medications.length - 1 ? indication : null;
+    y = drawMedicationBlock(doc, medication, y, rowIndication);
   });
 
   drawSignatureBlock(doc, Math.max(y + 8, PDF_LAYOUT.signatureY));
@@ -976,13 +964,13 @@ async function generateMedicationPdf(documentModel) {
 
   const [logoImage, footerImage] = await Promise.all([
     loadImageAsDataUrl(documentModel.unit.logo),
-    loadImageAsDataUrl(documentModel.unit.footer)
+    loadImageAsDataUrl(documentModel.unit.footer),
   ]);
 
   const doc = new JsPDF({
     orientation: "portrait",
     unit: "mm",
-    format: "a4"
+    format: "a4",
   });
 
   await ensureSfProFonts(doc);
@@ -990,14 +978,17 @@ async function generateMedicationPdf(documentModel) {
 
   const assets = {
     logo: logoImage,
-    footer: footerImage
+    footer: footerImage,
   };
 
   // Uma única via na metade superior; metade inferior em branco.
   drawMedicationCopy(doc, documentModel, assets);
   drawCutLine(doc);
 
-  if (typeof doc.getNumberOfPages === "function" && doc.getNumberOfPages() > 1) {
+  if (
+    typeof doc.getNumberOfPages === "function" &&
+    doc.getNumberOfPages() > 1
+  ) {
     console.warn("[pdf] Mais de uma página foi gerada; esperado apenas 1.");
   }
 

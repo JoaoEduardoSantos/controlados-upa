@@ -3,16 +3,9 @@
 const state = {
   patientName: "",
   selectedMedicationId: null,
-  selections: {},
-  quantity: null,
   downloadInFlight: false,
   lastDownloadedSignature: null
 };
-
-const MSG_MEDICATIONS_DISABLED =
-  "Digite o nome do paciente para liberar os medicamentos.";
-const MSG_MEDICATIONS_ENABLED =
-  "Selecione o medicamento que será retirado na farmácia.";
 
 let statusTimeoutId = null;
 
@@ -32,106 +25,15 @@ function getMedicationById(id) {
 
 function clearMedicationSelection() {
   state.selectedMedicationId = null;
-  state.selections = {};
-  state.quantity = null;
 }
 
-function isPositiveIntegerQuantity(value) {
-  if (value === null || value === undefined || value === "") {
-    return false;
-  }
-
-  const number = Number(value);
-  return Number.isInteger(number) && number >= 1;
-}
-
-function parseQuantityInput(rawValue) {
-  const raw = String(rawValue ?? "").trim();
-
-  if (raw === "") {
-    return null;
-  }
-
-  const number = Number(raw);
-
-  if (!Number.isInteger(number) || number < 1) {
-    return null;
-  }
-
-  return number;
-}
-
-function formatOptionPreviewLabel(label) {
-  const match = String(label).match(/\(([^)]+)\)/);
-  return match ? match[1] : label;
-}
-
-function getMedicationCardMeta(item) {
-  if (item.type === "combined") {
-    return item.medications.map((med) => med.name).join(" + ");
-  }
-
-  if (Array.isArray(item.optionGroups) && item.optionGroups.length > 0) {
-    const routeGroup = item.optionGroups.find((group) => group.id === "route");
-    const doseGroup = item.optionGroups.find((group) => group.id === "dose");
-    const parts = [];
-
-    if (routeGroup) {
-      parts.push(routeGroup.options.map((option) => option.label).join(" / "));
-    }
-
-    if (doseGroup) {
-      parts.push(
-        doseGroup.options
-          .map((option) => formatOptionPreviewLabel(option.label))
-          .join(" ou ")
-      );
-    }
-
-    if (parts.length > 0) {
-      return parts.join(" · ");
-    }
-  }
-
-  if (Array.isArray(item.options) && item.options.length > 0) {
-    const route = item.medications.map((med) => med.route).find(Boolean) || "";
-    const doses = item.options
-      .map((option) => formatOptionPreviewLabel(option.label))
-      .join(" ou ");
-    return [route, doses].filter(Boolean).join(" · ");
-  }
-
-  const routes = [
-    ...new Set(item.medications.map((med) => med.route).filter(Boolean))
-  ];
-
-  return routes.join(" / ");
-}
-
-function getCardPresentation(item) {
-  if (item.type === "combined") {
-    return "";
-  }
-
-  const presentation = item.medications
-    .map((med) => med.presentation)
-    .find(Boolean);
-
-  return presentation || "";
-}
-
-function medicationNeedsControls(item) {
-  return (
-    (Array.isArray(item.options) && item.options.length > 0) ||
-    (Array.isArray(item.optionGroups) && item.optionGroups.length > 0) ||
-    Boolean(item.requiresQuantityInput)
-  );
-}
-
-function applyOverrides(baseMedication, overrides) {
+function getCatalogMedicationFields(item) {
   return {
-    ...baseMedication,
-    ...(overrides || {})
+    name: String(item.name || "").trim(),
+    drugClass: String(item.drugClass || "").trim(),
+    route: String(item.route || "").trim(),
+    posology: String(item.posology || "").trim(),
+    dilution: String(item.dilution || "").trim()
   };
 }
 
@@ -156,45 +58,8 @@ function resolveMedicationSelection() {
     };
   }
 
-  if (!Array.isArray(item.medications) || item.medications.length === 0) {
-    missing.push("medications");
-  }
-
-  if (Array.isArray(item.options) && item.options.length > 0) {
-    if (!state.selections.option) {
-      missing.push("option");
-    } else if (
-      !item.options.some((option) => option.id === state.selections.option)
-    ) {
-      missing.push("option");
-    }
-  }
-
-  if (Array.isArray(item.optionGroups) && item.optionGroups.length > 0) {
-    item.optionGroups.forEach((group) => {
-      if (!group.required) {
-        return;
-      }
-
-      const selectedId = state.selections[group.id];
-
-      if (!selectedId) {
-        missing.push(group.id);
-        return;
-      }
-
-      const exists = Array.isArray(group.options)
-        ? group.options.some((option) => option.id === selectedId)
-        : false;
-
-      if (!exists) {
-        missing.push(group.id);
-      }
-    });
-  }
-
-  if (item.requiresQuantityInput && !isPositiveIntegerQuantity(state.quantity)) {
-    missing.push("quantity");
+  if (!item.name || String(item.name).trim() === "") {
+    missing.push("name");
   }
 
   if (missing.length > 0) {
@@ -206,97 +71,19 @@ function resolveMedicationSelection() {
     };
   }
 
-  let selectedOption = null;
-
-  if (Array.isArray(item.options) && item.options.length > 0) {
-    selectedOption = item.options.find(
-      (option) => option.id === state.selections.option
-    );
-
-    if (!selectedOption) {
-      return {
-        valid: false,
-        missing: ["option"],
-        medicationId: item.id,
-        patientName
-      };
-    }
-  }
-
-  const medications = item.medications.map((medication) => {
-    let resolved = { ...medication };
-
-    if (selectedOption) {
-      resolved = applyOverrides(resolved, selectedOption.overrides);
-    }
-
-    if (Array.isArray(item.optionGroups)) {
-      item.optionGroups.forEach((group) => {
-        const selectedId = state.selections[group.id];
-        if (!selectedId) {
-          return;
-        }
-
-        const groupOption = group.options.find(
-          (option) => option.id === selectedId
-        );
-
-        if (groupOption) {
-          resolved = applyOverrides(resolved, groupOption.overrides);
-        }
-      });
-    }
-
-    if (item.requiresQuantityInput) {
-      const quantityLabel = `${state.quantity} ampola${
-        Number(state.quantity) === 1 ? "" : "s"
-      }`;
-      const presentationSuffix = resolved.presentation
-        ? ` (${resolved.presentation})`
-        : "";
-
-      resolved = {
-        ...resolved,
-        quantity: quantityLabel,
-        posology: `${quantityLabel}${presentationSuffix}`
-      };
-    }
-
-    return resolved;
-  });
+  const resolvedMedication = getCatalogMedicationFields(item);
 
   if (
-    medications.length === 0 ||
-    medications.some(
-      (medication) =>
-        !medication ||
-        typeof medication.name !== "string" ||
-        medication.name.trim() === ""
-    )
+    !resolvedMedication ||
+    typeof resolvedMedication.name !== "string" ||
+    resolvedMedication.name.trim() === ""
   ) {
     return {
       valid: false,
-      missing: ["medications"],
+      missing: ["name"],
       medicationId: item.id,
       patientName
     };
-  }
-
-  if (item.requiresQuantityInput) {
-    const quantityApplied = medications.every(
-      (medication) =>
-        String(medication.quantity || "").trim() !== "" &&
-        String(medication.posology || "").trim() !== ""
-    );
-
-    if (!quantityApplied) {
-      return {
-        valid: false,
-        missing: ["quantity"],
-        medicationId: item.id,
-        patientName
-      };
-    }
   }
 
   return {
@@ -304,10 +91,8 @@ function resolveMedicationSelection() {
     patientName,
     medicationId: item.id,
     label: item.label,
-    shortLabel: item.shortLabel || item.label,
-    medications,
-    indication: item.indication || "",
-    notes: item.notes || ""
+    medications: [resolvedMedication],
+    indication: item.indication || ""
   };
 }
 
@@ -316,22 +101,10 @@ function buildRequestSignature(resolved) {
     return null;
   }
 
-  const parts = [
+  return [
     normalizePatientName(resolved.patientName).toLowerCase(),
     resolved.medicationId
-  ];
-
-  Object.keys(state.selections)
-    .sort()
-    .forEach((key) => {
-      parts.push(`${key}=${state.selections[key]}`);
-    });
-
-  if (state.quantity !== null && state.quantity !== undefined) {
-    parts.push(`qty=${state.quantity}`);
-  }
-
-  return parts.join("|");
+  ].join("|");
 }
 
 function getResolvedMedicationTitle(resolved) {
@@ -381,10 +154,10 @@ function buildMedicationDocumentModel(resolved, issuedAt) {
   const medications = Array.isArray(resolved.medications)
     ? resolved.medications.map((medication) => ({
         name: String(medication.name || "").trim(),
-        presentation: String(medication.presentation || "").trim(),
-        quantity: String(medication.quantity || "").trim(),
+        drugClass: String(medication.drugClass || "").trim(),
         route: String(medication.route || "").trim(),
-        posology: String(medication.posology || "").trim()
+        posology: String(medication.posology || "").trim(),
+        dilution: String(medication.dilution || "").trim()
       }))
     : [];
 
@@ -408,13 +181,12 @@ function buildMedicationDocumentModel(resolved, issuedAt) {
     patientName,
     medications,
     indication: String(resolved.indication || "").trim(),
-    notes: String(resolved.notes || "").trim(),
     date: formatDateBR(issuedAt),
     time: formatTimeBR(issuedAt)
   };
 }
 
-function showAppStatus(message, variant) {
+function showAppStatus(message, variant, durationMs) {
   const status = document.getElementById("appStatus");
 
   if (!status) {
@@ -439,12 +211,33 @@ function showAppStatus(message, variant) {
     return;
   }
 
+  const timeout = Number.isFinite(durationMs) ? durationMs : 2800;
+
   statusTimeoutId = window.setTimeout(() => {
     status.hidden = true;
     status.textContent = "";
     status.classList.remove("is-success", "is-error", "is-progress");
     statusTimeoutId = null;
-  }, 2800);
+  }, timeout);
+}
+
+function clearPatientNameError() {
+  const input = document.getElementById("patient-name");
+
+  if (input) {
+    input.classList.remove("is-invalid");
+  }
+}
+
+function showPatientNameRequired() {
+  const input = document.getElementById("patient-name");
+
+  if (input) {
+    input.classList.add("is-invalid");
+    input.focus();
+  }
+
+  showAppStatus("Digite o nome do paciente.", "error", 2000);
 }
 
 function setGeneratingUi(isGenerating) {
@@ -458,42 +251,6 @@ function setGeneratingUi(isGenerating) {
 function resetMedicationSelectionAfterDownload() {
   clearMedicationSelection();
   state.lastDownloadedSignature = null;
-}
-
-function getMissingSelectionHint(item) {
-  if (!item) {
-    return "";
-  }
-
-  if (item.requiresQuantityInput && !isPositiveIntegerQuantity(state.quantity)) {
-    return "Informe a quantidade de ampolas";
-  }
-
-  if (Array.isArray(item.options) && item.options.length > 0) {
-    if (!state.selections.option) {
-      return "Selecione a dose";
-    }
-  }
-
-  if (Array.isArray(item.optionGroups) && item.optionGroups.length > 0) {
-    const missing = item.optionGroups.filter(
-      (group) => group.required && !state.selections[group.id]
-    );
-
-    if (missing.length === 0) {
-      return "";
-    }
-
-    if (missing.length > 1) {
-      return `Selecione ${missing
-        .map((group) => group.label.toLowerCase())
-        .join(" e ")}`;
-    }
-
-    return `Selecione ${missing[0].label.toLowerCase()}`;
-  }
-
-  return "";
 }
 
 async function tryFinalizeMedicationRequest() {
@@ -558,205 +315,12 @@ async function tryFinalizeMedicationRequest() {
   }
 }
 
-function createOptionPill(option, isSelected, onSelect) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "option-pill";
-  button.textContent = option.label;
-  button.setAttribute("aria-pressed", isSelected ? "true" : "false");
-  button.disabled = state.downloadInFlight;
-
-  if (isSelected) {
-    button.classList.add("is-selected");
-  }
-
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-
-    if (state.downloadInFlight) {
-      return;
-    }
-
-    onSelect(option.id);
-  });
-
-  return button;
-}
-
-function createSimpleOptionsControls(item) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "medication-controls";
-
-  const hint = getMissingSelectionHint(item);
-
-  if (hint) {
-    const hintEl = document.createElement("p");
-    hintEl.className = "medication-controls__hint";
-    hintEl.textContent = hint;
-    wrapper.appendChild(hintEl);
-  }
-
-  const label = document.createElement("p");
-  label.className = "medication-controls__label";
-  label.textContent = "Dose";
-  wrapper.appendChild(label);
-
-  const pills = document.createElement("div");
-  pills.className = "option-pills";
-  pills.setAttribute("role", "group");
-  pills.setAttribute("aria-label", "Dose");
-
-  item.options.forEach((option) => {
-    const isSelected = state.selections.option === option.id;
-    pills.appendChild(
-      createOptionPill(option, isSelected, (optionId) => {
-        state.selections = { option: optionId };
-        syncMedicationUI();
-        tryFinalizeMedicationRequest();
-      })
-    );
-  });
-
-  wrapper.appendChild(pills);
-  return wrapper;
-}
-
-function createOptionGroupsControls(item) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "medication-controls";
-
-  const hint = getMissingSelectionHint(item);
-
-  if (hint) {
-    const hintEl = document.createElement("p");
-    hintEl.className = "medication-controls__hint";
-    hintEl.textContent = hint;
-    wrapper.appendChild(hintEl);
-  }
-
-  item.optionGroups.forEach((group) => {
-    const groupBlock = document.createElement("div");
-    groupBlock.className = "medication-controls__group";
-
-    const label = document.createElement("p");
-    label.className = "medication-controls__label";
-    label.textContent = group.label;
-    groupBlock.appendChild(label);
-
-    const pills = document.createElement("div");
-    pills.className = "option-pills";
-    pills.setAttribute("role", "group");
-    pills.setAttribute("aria-label", group.label);
-
-    group.options.forEach((option) => {
-      const isSelected = state.selections[group.id] === option.id;
-      pills.appendChild(
-        createOptionPill(option, isSelected, (optionId) => {
-          state.selections = {
-            ...state.selections,
-            [group.id]: optionId
-          };
-          syncMedicationUI();
-          tryFinalizeMedicationRequest();
-        })
-      );
-    });
-
-    groupBlock.appendChild(pills);
-    wrapper.appendChild(groupBlock);
-  });
-
-  return wrapper;
-}
-
-function createQuantityControls(item) {
-  const wrapper = document.createElement("div");
-  wrapper.className = "medication-controls";
-
-  const hint = getMissingSelectionHint(item);
-
-  if (hint) {
-    const hintEl = document.createElement("p");
-    hintEl.className = "medication-controls__hint";
-    hintEl.textContent = hint;
-    wrapper.appendChild(hintEl);
-  }
-
-  const fieldId = `quantity-${item.id}`;
-
-  const label = document.createElement("label");
-  label.className = "medication-controls__label";
-  label.setAttribute("for", fieldId);
-  label.textContent = "Quantidade de ampolas";
-  wrapper.appendChild(label);
-
-  const input = document.createElement("input");
-  input.id = fieldId;
-  input.className = "quantity-input";
-  input.type = "number";
-  input.min = "1";
-  input.step = "1";
-  input.inputMode = "numeric";
-  input.placeholder = "Ex.: 2";
-  input.autocomplete = "off";
-  input.disabled = state.downloadInFlight;
-
-  if (isPositiveIntegerQuantity(state.quantity)) {
-    input.value = String(state.quantity);
-  }
-
-  const commitQuantity = () => {
-    if (state.downloadInFlight) {
-      return;
-    }
-
-    state.quantity = parseQuantityInput(input.value);
-    syncMedicationUI();
-
-    if (isPositiveIntegerQuantity(state.quantity)) {
-      tryFinalizeMedicationRequest();
-    }
-  };
-
-  input.addEventListener("click", (event) => {
-    event.stopPropagation();
-  });
-
-  input.addEventListener("input", () => {
-    state.quantity = parseQuantityInput(input.value);
-
-    const liveHint = wrapper.querySelector(".medication-controls__hint");
-    const nextHint = getMissingSelectionHint(item);
-
-    if (liveHint && nextHint) {
-      liveHint.textContent = nextHint;
-    } else if (liveHint && !nextHint) {
-      liveHint.remove();
-    }
-  });
-
-  input.addEventListener("change", () => {
-    commitQuantity();
-  });
-
-  input.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      commitQuantity();
-    }
-  });
-
-  wrapper.appendChild(input);
-  return wrapper;
-}
-
 function createMedicationCard(item) {
   const isSelected = state.selectedMedicationId === item.id;
-  const patientReady = isPatientNameValid();
-  const interactive = patientReady && !state.downloadInFlight;
-  const meta = getMedicationCardMeta(item);
-  const presentation = getCardPresentation(item);
-  const title = item.shortLabel || item.label;
+  const interactive = !state.downloadInFlight;
+  const name = String(item.label || item.name || "").trim();
+  const route = String(item.route || "").trim();
+  const indication = String(item.indication || "").trim();
 
   const card = document.createElement("article");
   card.className = "medication-card";
@@ -766,58 +330,46 @@ function createMedicationCard(item) {
     card.classList.add("is-selected");
   }
 
-  if (!interactive) {
-    card.classList.add("is-disabled");
-  }
-
   const trigger = document.createElement("button");
   trigger.type = "button";
   trigger.className = "medication-card__trigger";
   trigger.setAttribute("aria-pressed", isSelected ? "true" : "false");
-  trigger.setAttribute("aria-disabled", interactive ? "false" : "true");
   trigger.disabled = !interactive;
 
   const titleEl = document.createElement("span");
   titleEl.className = "medication-card__title";
-  titleEl.textContent = title;
+  titleEl.textContent = name;
   trigger.appendChild(titleEl);
 
-  if (presentation) {
-    const presentationEl = document.createElement("span");
-    presentationEl.className = "medication-card__detail";
-    presentationEl.textContent = presentation;
-    trigger.appendChild(presentationEl);
+  if (route) {
+    const routeEl = document.createElement("span");
+    routeEl.className = "medication-card__route";
+    routeEl.textContent = route;
+    trigger.appendChild(routeEl);
   }
 
-  if (meta) {
-    const metaEl = document.createElement("span");
-    metaEl.className = "medication-card__meta";
-    metaEl.textContent = meta;
-    trigger.appendChild(metaEl);
+  if (indication) {
+    const indicationEl = document.createElement("span");
+    indicationEl.className = "medication-card__indication";
+    indicationEl.textContent = indication;
+    trigger.appendChild(indicationEl);
   }
 
   trigger.addEventListener("click", () => {
-    if (!isPatientNameValid() || state.downloadInFlight) {
+    if (state.downloadInFlight) {
       return;
     }
 
+    if (!isPatientNameValid()) {
+      showPatientNameRequired();
+      return;
+    }
+
+    clearPatientNameError();
     selectMedication(item.id);
   });
 
   card.appendChild(trigger);
-
-  if (isSelected && medicationNeedsControls(item)) {
-    if (Array.isArray(item.optionGroups) && item.optionGroups.length > 0) {
-      card.appendChild(createOptionGroupsControls(item));
-    } else if (Array.isArray(item.options) && item.options.length > 0) {
-      card.appendChild(createSimpleOptionsControls(item));
-    }
-
-    if (item.requiresQuantityInput) {
-      card.appendChild(createQuantityControls(item));
-    }
-  }
-
   return card;
 }
 
@@ -826,60 +378,107 @@ function selectMedication(medicationId) {
     return;
   }
 
-  const isNewSelection = state.selectedMedicationId !== medicationId;
-
-  if (isNewSelection) {
-    state.selectedMedicationId = medicationId;
-    state.selections = {};
-    state.quantity = null;
-  }
-
+  state.selectedMedicationId = medicationId;
   syncMedicationUI();
 
-  const item = getMedicationById(medicationId);
-
-  if (!item) {
+  if (!getMedicationById(medicationId)) {
     return;
   }
 
-  if (!medicationNeedsControls(item)) {
-    tryFinalizeMedicationRequest();
-  }
+  tryFinalizeMedicationRequest();
+}
+
+function drugClassSortIndex(drugClass) {
+  const order =
+    typeof DRUG_CLASS_ORDER !== "undefined" && Array.isArray(DRUG_CLASS_ORDER)
+      ? DRUG_CLASS_ORDER
+      : [];
+  const index = order.indexOf(drugClass);
+  return index === -1 ? order.length : index;
+}
+
+function groupMedicationsByDrugClass(items) {
+  const groups = [];
+  const indexByClass = new Map();
+
+  items.forEach((item) => {
+    const drugClass = String(item.drugClass || "").trim() || "Outros";
+    let group = indexByClass.get(drugClass);
+
+    if (!group) {
+      group = { drugClass, items: [] };
+      indexByClass.set(drugClass, group);
+      groups.push(group);
+    }
+
+    group.items.push(item);
+  });
+
+  groups.sort((a, b) => {
+    const byOrder =
+      drugClassSortIndex(a.drugClass) - drugClassSortIndex(b.drugClass);
+    if (byOrder !== 0) {
+      return byOrder;
+    }
+    return a.drugClass.localeCompare(b.drugClass, "pt-BR");
+  });
+
+  groups.forEach((group) => {
+    group.items.sort((a, b) => {
+      const orderA = Number(a.order);
+      const orderB = Number(b.order);
+      const safeA = Number.isFinite(orderA) ? orderA : Number.POSITIVE_INFINITY;
+      const safeB = Number.isFinite(orderB) ? orderB : Number.POSITIVE_INFINITY;
+      if (safeA !== safeB) {
+        return safeA - safeB;
+      }
+      return String(a.label || a.name || "").localeCompare(
+        String(b.label || b.name || ""),
+        "pt-BR"
+      );
+    });
+  });
+
+  return groups;
 }
 
 function renderMedicationCatalog() {
-  const grid = document.getElementById("medications-grid");
+  const catalog = document.getElementById("medications-grid");
 
-  if (!grid || typeof MEDICATIONS === "undefined") {
+  if (!catalog || typeof MEDICATIONS === "undefined") {
     return;
   }
 
-  grid.innerHTML = "";
+  catalog.innerHTML = "";
 
-  MEDICATIONS.forEach((item) => {
-    grid.appendChild(createMedicationCard(item));
+  groupMedicationsByDrugClass(MEDICATIONS).forEach((group, index) => {
+    const section = document.createElement("section");
+    section.className = "medication-group";
+    section.setAttribute("aria-labelledby", `medication-group-${index}`);
+
+    const heading = document.createElement("h2");
+    heading.id = `medication-group-${index}`;
+    heading.className = "section-title";
+    heading.textContent = group.drugClass;
+    section.appendChild(heading);
+
+    const grid = document.createElement("div");
+    grid.className = "medications-grid";
+
+    group.items.forEach((item) => {
+      grid.appendChild(createMedicationCard(item));
+    });
+
+    section.appendChild(grid);
+    catalog.appendChild(section);
   });
 }
 
 function updateMedicationSectionState() {
-  const section = document.getElementById("medications-section");
-  const hint = document.getElementById("medications-hint");
-
-  if (!section || !hint) {
-    return;
-  }
-
-  const isValid = isPatientNameValid();
-
-  if (!isValid) {
+  if (!isPatientNameValid()) {
     clearMedicationSelection();
     state.lastDownloadedSignature = null;
   }
-
-  section.classList.toggle("is-disabled", !isValid);
-  hint.textContent = isValid
-    ? MSG_MEDICATIONS_ENABLED
-    : MSG_MEDICATIONS_DISABLED;
 }
 
 function syncMedicationUI() {
@@ -896,6 +495,11 @@ function initPatientField() {
 
   input.addEventListener("input", () => {
     state.patientName = input.value;
+
+    if (isPatientNameValid()) {
+      clearPatientNameError();
+    }
+
     syncMedicationUI();
   });
 
@@ -908,6 +512,11 @@ function initPatientField() {
 
     input.value = normalized;
     state.patientName = normalized;
+
+    if (isPatientNameValid()) {
+      clearPatientNameError();
+    }
+
     syncMedicationUI();
   });
 }
