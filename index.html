@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Medicamentos</title>
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/print.css">
+</head>
+<body>
+  <main class="app">
+    <header class="app-header card">
+      <h1 class="app-title">Controle de Medicamentos</h1>
+      <p id="app-unit-subtitle" class="app-subtitle"></p>
+    </header>
+
+    <section class="panel card" aria-label="Formulário de solicitação">
+      <section class="panel-section" aria-labelledby="paciente-heading">
+        <h2 id="paciente-heading" class="section-title">Paciente</h2>
+        <div class="field-group">
+          <label class="field-label" for="patient-name">Nome do paciente</label>
+          <input
+            id="patient-name"
+            class="field-input"
+            type="text"
+            placeholder="Digite o nome completo"
+            autocomplete="off"
+            spellcheck="false"
+          >
+        </div>
+      </section>
+
+      <section
+        id="medications-section"
+        class="panel-section medications-section is-disabled"
+        aria-labelledby="medicamentos-heading"
+        aria-describedby="medications-hint"
+      >
+        <h2 id="medicamentos-heading" class="section-title">Medicamentos disponíveis</h2>
+        <p id="medications-hint" class="section-hint">
+          Digite o nome do paciente para liberar os medicamentos.
+        </p>
+        <div id="medications-grid" class="medications-grid"></div>
+      </section>
+    </section>
+  </main>
+
+  <div
+    id="appStatus"
+    class="app-status"
+    role="status"
+    aria-live="polite"
+    aria-atomic="true"
+    hidden
+  ></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/embedded-images.js"></script>
+  <script src="js/embedded-fonts.js"></script>
+  <script src="js/medications.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="js/pdf.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

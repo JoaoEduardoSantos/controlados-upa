@@ -1,0 +1,4089 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard de Produtividade Médica</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --text: #0b1220;
+        --text-secondary: #5b6475;
+        --muted: #8b95a8;
+        --active: #111827;
+        --border: rgba(255, 255, 255, 0.72);
+        --border-subtle: rgba(15, 23, 42, 0.05);
+        --glass-bg: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.82),
+          rgba(248, 250, 252, 0.66)
+        );
+        --surface: var(--glass-bg);
+        --surface-solid: rgba(255, 255, 255, 0.88);
+        --shadow-surface:
+          0 24px 70px rgba(15, 23, 42, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        --shadow-soft: 0 10px 32px rgba(15, 23, 42, 0.07);
+        --shadow-pill:
+          0 8px 24px rgba(15, 23, 42, 0.14),
+          inset 0 1px 0 rgba(255, 255, 255, 0.55);
+        --radius-sm: 22px;
+        --radius-md: 26px;
+        --radius-lg: 32px;
+        --radius-xl: 40px;
+        --radius-pill: 999px;
+        --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+        --font-text:
+          "SF Pro Text", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Helvetica, Arial, sans-serif;
+        --font-display:
+          "SF Pro Display", -apple-system, BlinkMacSystemFont, "Helvetica Neue",
+          Helvetica, Arial, sans-serif;
+        --font: var(--font-text);
+        --ficha-azul: #3b6ef6;
+        --ficha-verde: #238a45;
+        --ficha-amarelo: #d99a00;
+        --ficha-laranja: #e4571e;
+        --ficha-vermelho: #c6282d;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: var(--font-text);
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--text);
+        background:
+          radial-gradient(
+            circle at 20% 0%,
+            rgba(180, 205, 240, 0.38),
+            transparent 34%
+          ),
+          radial-gradient(
+            circle at 85% 8%,
+            rgba(245, 230, 210, 0.32),
+            transparent 30%
+          ),
+          linear-gradient(135deg, #f7f9fc 0%, #eef3f8 45%, #faf7f2 100%);
+        background-attachment: fixed;
+      }
+
+      .app {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+
+      @media (min-width: 640px) {
+        .app {
+          padding: 24px 32px;
+        }
+      }
+
+      @media (min-width: 1024px) {
+        .app {
+          padding: 48px 56px 96px;
+        }
+      }
+
+      .glass {
+        background: var(--glass-bg);
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        box-shadow: var(--shadow-surface);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        border-radius: var(--radius-lg);
+      }
+
+      .topbar {
+        position: relative;
+        padding: 32px 36px;
+        margin-bottom: 28px;
+        border-radius: 46px;
+      }
+
+      .topbar-main {
+        padding-right: 168px;
+      }
+
+      .topbar h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 3.2vw, 2.375rem);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        color: var(--text);
+        line-height: 1.08;
+      }
+
+      .topbar-subtitle {
+        margin: 10px 0 0;
+        color: var(--text-secondary);
+        font-size: 0.975rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+
+      .topbar-actions {
+        position: absolute;
+        top: 32px;
+        right: 36px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      input,
+      select {
+        border: 1px solid var(--border-subtle);
+        border-radius: var(--radius-pill);
+        padding: 10px 16px;
+        background: rgba(255, 255, 255, 0.75);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.9rem;
+        box-shadow: var(--shadow-soft);
+      }
+
+      input {
+        min-width: 280px;
+      }
+
+      .btn {
+        cursor: pointer;
+        font-family: var(--font-text);
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        padding: 11px 22px;
+        border-radius: var(--radius-pill);
+        border: none;
+        background: #111827;
+        color: #fff;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.16);
+        transition:
+          transform 0.26s var(--ease-spring),
+          box-shadow 0.26s var(--ease-spring),
+          background 0.26s var(--ease-spring);
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 36px rgba(15, 23, 42, 0.2);
+        background: #0b0f19;
+      }
+
+      .btn:active {
+        transform: translateY(0);
+      }
+
+      .btn.secondary {
+        background: rgba(255, 255, 255, 0.58);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.85);
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+        backdrop-filter: blur(16px) saturate(160%);
+        -webkit-backdrop-filter: blur(16px) saturate(160%);
+      }
+
+      .btn.secondary:hover {
+        background: rgba(255, 255, 255, 0.88);
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+      }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      @media (min-width: 640px) {
+        .kpis {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 1100px) {
+        .kpis {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+      }
+
+      .kpi-card {
+        padding: 22px 24px 20px;
+        border-radius: var(--radius-md);
+        background: var(--glass-bg);
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        box-shadow: var(--shadow-surface);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+        animation: fadeInUp 0.5s var(--ease-spring) both;
+        transition:
+          transform 0.28s var(--ease-spring),
+          box-shadow 0.28s var(--ease-spring);
+        text-align: center;
+      }
+
+      .kpi-card:hover {
+        transform: translateY(-1px);
+      }
+
+      .kpi-card .label {
+        display: block;
+        font-family: var(--font-text);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .kpi-card .value {
+        display: block;
+        width: 100%;
+        font-family: var(--font-display);
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        margin-top: 12px;
+        line-height: 1.05;
+        text-align: center;
+      }
+
+      .kpi-card .value.small {
+        font-size: 1.35rem;
+        letter-spacing: -0.03em;
+      }
+
+      .kpi-card--total .value {
+        font-size: clamp(3.8rem, 6.2vw, 4.5rem);
+        font-weight: 750;
+        letter-spacing: -0.04em;
+        margin-top: 14px;
+      }
+
+      .kpi-card--espera {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .kpi-card--espera .value.small {
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+        font-weight: 750;
+        letter-spacing: -0.035em;
+        margin-top: 14px;
+        width: 100%;
+        text-align: center;
+      }
+
+      .kpi-card--espera .kpi-footnote {
+        margin-top: auto;
+        padding-top: 16px;
+      }
+
+      .kpis-row-main .kpi-card > .label {
+        text-align: left;
+        width: 100%;
+      }
+
+      .kpi-card-indices {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: stretch;
+        text-align: center;
+        min-height: 100%;
+      }
+
+      .kpi-card-indices > .label {
+        text-align: left;
+      }
+
+      .indices-inline {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 18px;
+        margin-top: 12px;
+        flex: 1;
+      }
+
+      .index-item {
+        text-align: center;
+        min-width: 0;
+      }
+
+      .indices-divider {
+        width: 1px;
+        height: 56px;
+        background: rgba(15, 23, 42, 0.06);
+        justify-self: center;
+      }
+
+      .index-value {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: center;
+        line-height: 0.95;
+        font-variant-numeric: tabular-nums;
+        font-family: var(--font-display);
+        font-size: clamp(1.75rem, 3vw, 2.5rem);
+        font-weight: 750;
+        letter-spacing: -0.035em;
+        color: var(--text);
+        --dur-unit-fw: 608;
+      }
+
+      .index-main {
+        font-size: 1em;
+        font-weight: inherit;
+        letter-spacing: inherit;
+        color: inherit;
+      }
+
+      .kpi-card-indices .index-value .dur-unit {
+        margin-left: 2px;
+      }
+
+      .kpi-card-indices .kpi-sub {
+        margin-top: 8px;
+        font-size: 0.648rem;
+        font-weight: 450;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        line-height: 1.3;
+      }
+
+      .kpi-card-indices .kpi-footnote {
+        margin-top: auto;
+        padding-top: 12px;
+        width: 100%;
+        text-align: left;
+        line-height: 1.45;
+      }
+
+      @media (max-width: 520px) {
+        .indices-inline {
+          gap: 12px;
+        }
+
+        .indices-divider {
+          height: 48px;
+        }
+
+        .kpi-card-indices .index-value {
+          font-size: clamp(1.5rem, 5vw, 2rem);
+        }
+
+        .kpi-card-indices .kpi-sub {
+          font-size: 0.585rem;
+        }
+      }
+
+      .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .chart-card {
+        padding: 24px 26px 22px;
+        min-height: 280px;
+        margin-top: 0;
+        border-radius: var(--radius-md);
+        animation: fadeInUp 0.5s var(--ease-spring) both;
+        transition: transform 0.28s var(--ease-spring);
+      }
+
+      .chart-card:hover {
+        transform: translateY(-1px);
+      }
+
+      .chart-card canvas {
+        max-height: 240px;
+      }
+      .chart-card.full {
+        grid-column: span 2;
+      }
+
+      .chart-card h3,
+      .chart-card-head h3 {
+        margin: 0;
+        flex: 1 1 200px;
+        font-family: var(--font-display);
+        font-size: 1.125rem;
+        font-weight: 650;
+        letter-spacing: -0.025em;
+        color: var(--text);
+      }
+
+      .duty-section {
+        display: grid;
+        gap: 16px;
+      }
+
+      .duty-card {
+        padding: 20px;
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: var(--shadow-surface);
+        animation: fadeInUp 0.55s var(--ease-spring) both;
+      }
+
+      .duty-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .duty-title {
+        margin: 0;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .duty-meta {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        margin-top: 0;
+        max-height: 440px;
+        border-radius: var(--radius-md);
+        border: 1px solid rgba(255, 255, 255, 0.72);
+        background: var(--glass-bg);
+        box-shadow: var(--shadow-surface);
+        backdrop-filter: blur(24px) saturate(180%);
+        -webkit-backdrop-filter: blur(24px) saturate(180%);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 980px;
+        font-family: var(--font-text);
+      }
+
+      thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: rgba(255, 255, 255, 0.78);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        font-size: 11px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        text-align: left;
+        padding: 16px 18px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+        transition: color 0.22s var(--ease-spring);
+      }
+
+      thead th:hover {
+        color: var(--text-secondary);
+      }
+
+      tbody td {
+        padding: 13px 18px;
+        border-top: 1px solid rgba(15, 23, 42, 0.035);
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        font-size: 0.9rem;
+        font-weight: 500;
+      }
+
+      tbody td:first-child {
+        font-weight: 600;
+        color: #1e293b;
+      }
+
+      tbody tr {
+        background: rgba(255, 255, 255, 0.28);
+        transition: background 0.22s var(--ease-spring);
+      }
+
+      tbody tr:nth-child(even) {
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      tbody tr:hover {
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .highlight {
+        font-weight: 700;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.55) !important;
+      }
+
+      .badges {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 10px;
+      }
+
+      .badge {
+        font-size: 0.84rem;
+        padding: 8px 12px;
+        border-radius: var(--radius-pill);
+        border: 1px solid var(--border-subtle);
+        background: rgba(255, 255, 255, 0.65);
+        color: var(--text-secondary);
+      }
+
+      .badge.azul {
+        background: rgba(59, 110, 246, 0.12);
+      }
+      .badge.verde {
+        background: rgba(35, 138, 69, 0.12);
+      }
+      .badge.amarelo {
+        background: rgba(217, 154, 0, 0.14);
+      }
+      .badge.laranja {
+        background: rgba(228, 87, 30, 0.12);
+      }
+      .badge.vermelho {
+        background: rgba(198, 40, 45, 0.12);
+      }
+
+      .skeleton-card {
+        height: 86px;
+        border-radius: 22px;
+        background: linear-gradient(
+          100deg,
+          rgba(255, 255, 255, 0.4),
+          rgba(255, 255, 255, 0.85),
+          rgba(255, 255, 255, 0.4)
+        );
+        background-size: 220% 100%;
+        animation: shimmer 1.4s infinite;
+      }
+
+      @keyframes shimmer {
+        to {
+          background-position-x: -220%;
+        }
+      }
+
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(8px) scale(0.992);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .upload-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.28);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+
+      .upload-overlay[hidden] {
+        display: none !important;
+      }
+
+      .upload-panel {
+        max-width: 700px;
+        width: 100%;
+        padding: 36px 40px;
+        text-align: center;
+        border-radius: 44px;
+      }
+
+      .upload-hint {
+        margin: 0 0 20px;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+        line-height: 1.55;
+        text-align: left;
+      }
+
+      .upload-form {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        align-items: stretch;
+      }
+
+      .upload-drop {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+        border: 1.5px dashed rgba(15, 23, 42, 0.12);
+        border-radius: var(--radius-lg);
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.65);
+        transition:
+          border-color 0.28s var(--ease-spring),
+          background 0.28s var(--ease-spring),
+          transform 0.28s var(--ease-spring);
+      }
+
+      .upload-drop:hover,
+      .upload-drop.dragover {
+        border-color: rgba(15, 23, 42, 0.22);
+        background: rgba(255, 255, 255, 0.92);
+        transform: translateY(-1px);
+      }
+
+      .upload-drop input[type="file"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+      }
+
+      .upload-drop-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        pointer-events: none;
+      }
+
+      .upload-drop-title {
+        font-weight: 600;
+        color: var(--text);
+        font-size: 0.92rem;
+      }
+
+      .upload-drop-text {
+        font-weight: 400;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .upload-submit {
+        width: 100%;
+        border: none;
+      }
+
+      .upload-error {
+        margin: 12px 0 0;
+        color: #b91c1c;
+        font-size: 0.9rem;
+        text-align: left;
+      }
+
+      .plantao-nav-wrap {
+        margin-bottom: 32px;
+        padding: 22px 28px 24px;
+        border-radius: 42px;
+        background: rgba(255, 255, 255, 0.62);
+        border: 1px solid rgba(255, 255, 255, 0.78);
+        box-shadow:
+          0 20px 52px rgba(15, 23, 42, 0.07),
+          0 6px 18px rgba(15, 23, 42, 0.04),
+          inset 0 1px 0 rgba(255, 255, 255, 0.88);
+        backdrop-filter: blur(28px) saturate(190%);
+        -webkit-backdrop-filter: blur(28px) saturate(190%);
+      }
+
+      .plantao-nav-wrap h2 {
+        margin: 0 0 18px;
+        font-family: var(--font-text);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        text-align: left;
+        color: var(--muted);
+      }
+
+      .plantao-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 8px;
+        padding: 2px;
+      }
+
+      @media (max-width: 760px) {
+        .plantao-nav-grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+
+      @media (max-width: 460px) {
+        .plantao-nav-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      .plantao-chip {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        border: 0.5px solid rgba(15, 23, 42, 0.12);
+        border-radius: 18px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.55);
+      }
+
+      .plantao-chip.is-today {
+        border-color: rgba(17, 24, 39, 0.4);
+      }
+
+      .plantao-chip-header {
+        position: relative;
+        padding: 6px 22px 6px 6px;
+        text-align: center;
+        white-space: nowrap;
+        border-bottom: 0.5px solid rgba(15, 23, 42, 0.08);
+      }
+
+      .plantao-chip-weekday {
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 1.2;
+        color: var(--text);
+        text-transform: lowercase;
+      }
+
+      .plantao-chip-date {
+        margin-left: 5px;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 1.2;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .plantao-chip-today-badge {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        font-size: 8px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+      }
+
+      .plantao-chip-body {
+        display: flex;
+        flex-direction: row;
+      }
+
+      .plantao-chip-half {
+        position: relative;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 36px;
+        padding: 8px 6px;
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        cursor: pointer;
+        transition:
+          background 0.12s var(--ease-spring),
+          color 0.12s var(--ease-spring);
+      }
+
+      .plantao-chip-half:first-child {
+        border-right: 0.5px solid rgba(15, 23, 42, 0.08);
+      }
+
+      .plantao-chip-half:hover {
+        background: rgba(15, 23, 42, 0.05);
+      }
+
+      .plantao-chip-half.active {
+        background: var(--active);
+        color: #fff;
+      }
+
+      .plantao-chip-half svg {
+        width: 14px;
+        height: 14px;
+      }
+
+      .plantao-chip-half.placeholder {
+        pointer-events: none;
+        visibility: hidden;
+      }
+
+      .plantao-chip-half-badge {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(2px, 2px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0.65;
+      }
+
+      .plantao-chip-half-badge svg {
+        width: 9px;
+        height: 9px;
+        stroke-width: 3.5;
+      }
+
+      .plantao-chip-half-badge.is-ok {
+        color: #16a34a;
+      }
+
+      .plantao-chip-half-badge.is-low {
+        color: #dc2626;
+      }
+
+      .plantao-chip-empty {
+        visibility: hidden;
+      }
+
+      .plantao-view {
+        display: none;
+      }
+      .plantao-view.active {
+        display: flex;
+        flex-direction: column;
+        gap: 28px;
+        animation: fadeInUp 0.45s var(--ease-spring) both;
+      }
+
+      .kpis-plantao-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-bottom: 0;
+      }
+
+      .kpis-plantao {
+        display: grid;
+        gap: 16px;
+        margin-bottom: 0;
+      }
+
+      .kpis-row-main {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+
+      @media (min-width: 640px) {
+        .kpis-row-main {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 1100px) {
+        .kpis-row-main {
+          grid-template-columns: 1fr 1fr 1.15fr;
+        }
+      }
+
+      .kpis-row-risco {
+        grid-template-columns: 1fr;
+      }
+
+      @media (min-width: 640px) {
+        .kpis-row-risco {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (min-width: 900px) {
+        .kpis-row-risco {
+          grid-template-columns: repeat(5, minmax(0, 1fr));
+        }
+      }
+
+      .kpi-card .kpi-sub {
+        margin-top: 6px;
+        font-family: var(--font-text);
+        font-size: 0.9rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+
+      .kpi-card .kpi-footnote {
+        margin: 0;
+        font-family: var(--font-text);
+        font-size: 0.68rem;
+        font-weight: 500;
+        color: var(--muted);
+        line-height: 1.5;
+        letter-spacing: 0.01em;
+      }
+
+      .kpi-card-risco {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+
+      .kpi-risco-tag {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 76px;
+        padding: 6px 13px;
+        border-radius: var(--radius-pill);
+        font-family: var(--font-text);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        text-align: center;
+        line-height: 1.15;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+      }
+
+      .kpi-risco-tag.azul {
+        background: var(--ficha-azul);
+        color: #fff;
+      }
+
+      .kpi-risco-tag.verde {
+        background: var(--ficha-verde);
+        color: #fff;
+      }
+
+      .kpi-risco-tag.amarelo {
+        background: var(--ficha-amarelo);
+        color: #1a1a1a;
+      }
+
+      .kpi-risco-tag.laranja {
+        background: var(--ficha-laranja);
+        color: #fff;
+      }
+
+      .kpi-risco-tag.vermelho {
+        background: var(--ficha-vermelho);
+        color: #fff;
+      }
+
+      .kpi-card-risco .value.small {
+        margin-top: 14px;
+        font-family: var(--font-display);
+        font-size: clamp(1.75rem, 2.5vw, 2.125rem);
+        font-weight: 750;
+        letter-spacing: -0.035em;
+        width: 100%;
+        color: var(--text);
+        text-align: center;
+      }
+
+      .kpi-card-risco .kpi-sub {
+        margin-top: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        --dur-unit-fw: 405;
+      }
+
+      .dur-unit {
+        font-size: 0.648em;
+        font-weight: var(--dur-unit-fw, 567);
+      }
+
+      .kpi-card--total .value,
+      .kpi-card--espera .value.small {
+        --dur-unit-fw: 608;
+      }
+
+      .plantao-view .table-wrap {
+        margin-top: 0;
+      }
+
+      .indicadores-footer {
+        margin-top: 36px;
+        padding: 28px 32px 32px;
+        border-radius: var(--radius-md);
+      }
+
+      .indicadores-metodologia h2,
+      .indicadores-parciais h2 {
+        margin: 0 0 16px;
+        font-family: var(--font-display);
+        font-size: 1.125rem;
+        font-weight: 650;
+        letter-spacing: -0.025em;
+        color: var(--text);
+      }
+
+      .indicadores-metodologia h3,
+      .indicadores-parciais h3 {
+        margin: 22px 0 10px;
+        font-family: var(--font-display);
+        font-size: 0.98rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+
+      .indicadores-metodologia h3:first-of-type {
+        margin-top: 0;
+      }
+
+      .indicadores-metodologia p,
+      .indicadores-metodologia li,
+      .indicadores-parciais p {
+        font-family: var(--font-text);
+        font-size: 0.86rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+
+      .indicadores-metodologia ul {
+        margin: 8px 0 0;
+        padding-left: 1.15rem;
+      }
+
+      .indicadores-metodologia li {
+        margin-bottom: 6px;
+      }
+
+      .indicadores-metodologia strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      .indicadores-parciais {
+        margin-top: 28px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(15, 23, 42, 0.06);
+      }
+
+      .indicadores-plantao-ref {
+        margin: 0 0 18px;
+        font-size: 0.8rem !important;
+        color: var(--muted) !important;
+      }
+
+      .indicadores-parciais-grid {
+        display: grid;
+        gap: 20px;
+      }
+
+      @media (min-width: 900px) {
+        .indicadores-parciais-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+
+      .indicadores-parciais-bloco h4 {
+        margin: 0 0 12px;
+        font-family: var(--font-display);
+        font-size: 0.95rem;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+        color: var(--text);
+      }
+
+      .indicadores-parciais-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .indicadores-parciais-list li {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 4px 16px;
+        padding: 10px 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.35);
+        border: 1px solid rgba(255, 255, 255, 0.55);
+      }
+
+      .indicadores-parciais-list .parcial-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+        grid-column: 1;
+      }
+
+      .indicadores-parciais-list .parcial-pts {
+        font-family: var(--font-display);
+        font-size: 0.95rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        text-align: right;
+      }
+
+      .indicadores-parciais-list .parcial-detalhe {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        line-height: 1.45;
+        grid-column: 1;
+      }
+
+      .chart-card.hourly-chart {
+        min-height: 380px;
+      }
+
+      .chart-card.hourly-chart canvas {
+        max-height: 320px;
+      }
+
+      .chart-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .chart-subhint {
+        margin: 0 0 14px;
+        font-family: var(--font-text);
+        font-size: 0.84rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        line-height: 1.55;
+      }
+
+      .chart-switches-col {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 28px;
+        flex-shrink: 0;
+      }
+
+      .chart-switch-wrap {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 0;
+        flex-shrink: 0;
+      }
+
+      .chart-switch-label {
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+
+      .chart-switch {
+        display: inline-flex;
+        padding: 4px;
+        border-radius: var(--radius-pill);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        box-shadow: var(--shadow-soft);
+      }
+
+      .chart-switch-btn {
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: 0.84rem;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        transition:
+          background 0.28s var(--ease-spring),
+          color 0.28s var(--ease-spring),
+          box-shadow 0.28s var(--ease-spring);
+      }
+
+      .chart-switch-btn:hover {
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.65);
+      }
+
+      .chart-switch-btn.active {
+        background: #111827;
+        color: #fff;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
+      }
+
+      .race-play {
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: rgba(255, 255, 255, 0.55);
+        color: var(--text);
+        font: inherit;
+        font-size: 0.84rem;
+        font-weight: 600;
+        padding: 8px 16px;
+        border-radius: var(--radius-pill);
+        cursor: pointer;
+        box-shadow: var(--shadow-soft);
+        transition:
+          background 0.28s var(--ease-spring),
+          color 0.28s var(--ease-spring),
+          box-shadow 0.28s var(--ease-spring),
+          opacity 0.28s var(--ease-spring);
+      }
+
+      .race-play:hover:not([disabled]) {
+        background: rgba(255, 255, 255, 0.92);
+        transform: translateY(-1px);
+      }
+
+      .race-play[disabled] {
+        opacity: 0.65;
+        cursor: wait;
+        background: rgba(15, 23, 42, 0.06);
+        color: var(--text-secondary);
+        box-shadow: none;
+      }
+
+      .race-card {
+        margin-top: 0;
+      }
+
+      .race-hour {
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+        margin: 2px 0 16px;
+      }
+
+      .race-stage {
+        position: relative;
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 4px 0;
+      }
+
+      .race-row {
+        display: grid;
+        grid-template-columns: minmax(100px, 22%) 1fr minmax(44px, 56px);
+        align-items: center;
+        gap: 12px;
+        min-height: 32px;
+        will-change: transform;
+      }
+
+      @media (max-width: 760px) {
+        .race-row {
+          grid-template-columns: minmax(72px, 28%) 1fr 44px;
+        }
+        .charts-grid {
+          grid-template-columns: 1fr;
+        }
+        .chart-card.full {
+          grid-column: span 1;
+        }
+        input {
+          min-width: 0;
+          width: 100%;
+        }
+        .topbar {
+          border-radius: 28px;
+          padding: 20px;
+        }
+
+        .topbar-main {
+          padding-right: 0;
+        }
+
+        .topbar-actions {
+          position: static;
+          margin-top: 16px;
+          width: 100%;
+          justify-content: flex-end;
+        }
+      }
+
+      .race-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.25;
+        letter-spacing: -0.01em;
+        color: #0f172a;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .race-bar-wrap {
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+      }
+
+      .race-bar {
+        height: 100%;
+        border-radius: 999px;
+        transition:
+          width 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        transform-origin: left center;
+        box-shadow:
+          0 4px 12px rgba(15, 23, 42, 0.1),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+
+      .race-value {
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        text-align: right;
+        color: #64748b;
+      }
+
+      .race-controls {
+        flex-shrink: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="uploadOverlay"
+      class="upload-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="uploadTitle"
+    >
+      <div class="upload-panel glass">
+        <form id="uploadForm" class="upload-form">
+          <label class="upload-drop" id="uploadDrop">
+            <input
+              id="fileInput"
+              type="file"
+              accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            />
+            <span class="upload-drop-content">
+              <span class="upload-drop-title" id="uploadTitle"
+                >Relatório - Tempo médio de espera por atendimento</span
+              >
+              <span class="upload-drop-text" id="uploadDropText"
+                >Clique ou arraste o arquivo aqui</span
+              >
+            </span>
+          </label>
+          <p id="uploadProgress" class="upload-hint" hidden>
+            Processando planilha…
+          </p>
+        </form>
+        <p id="uploadError" class="upload-error" hidden></p>
+      </div>
+    </div>
+
+    <div id="app" class="app loading">
+      <header class="topbar glass">
+        <div class="topbar-main">
+          <h1>Dashboard de Produtividade Médica</h1>
+          <p class="topbar-subtitle">
+            UPA Tiago Cardoso Santos, Mateus Leme-MG
+          </p>
+        </div>
+        <div class="topbar-actions">
+          <button
+            type="button"
+            id="changeSheetBtn"
+            class="btn secondary"
+            hidden
+          >
+            Trocar planilha
+          </button>
+        </div>
+      </header>
+
+      <nav id="plantaoNavWrap" class="plantao-nav-wrap glass" hidden>
+        <h2>Plantões</h2>
+        <div id="plantaoNav" class="plantao-nav-grid" role="tablist"></div>
+      </nav>
+
+      <main id="plantaoMain" hidden>
+        <div id="plantaoViews"></div>
+      </main>
+
+      <footer id="indicadoresFooter" class="indicadores-footer glass" hidden>
+        <div id="indicadoresMetodologia" class="indicadores-metodologia"></div>
+        <div id="indicadoresParciais" class="indicadores-parciais"></div>
+      </footer>
+    </div>
+
+    <template id="skeletonTemplate">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </template>
+
+    <script>
+      /* eslint-disable no-unused-vars */
+      const NOMES_COLUNAS_29 = [
+        "cod1",
+        "cod2",
+        "cod3",
+        "CLASSIFICAÇÃO",
+        "UNIDADE",
+        "PRONTUÁRIO",
+        "PACIENTE",
+        "IDADE",
+        "cod4",
+        "DATA-HORA 1: RECEPÇÃO",
+        "DATA-HORA 2: ACOLHIMENTO",
+        "DATA-HORA 3: ATENDIMENTO",
+        "cod5",
+        "cod6",
+        "cod7",
+        "MÉDICO",
+        "TEMPO 1: ESPERA ACOLHIMENTO",
+        "TEMPO 2: DURAÇÃO ACOLHIMENTO",
+        "TEMPO 3: ESPERA ACOLHIMENTO-ATENDIMENTO",
+        "TEMPO 4: DURAÇÃO ATENDIMENTO",
+        "TEMPO 5: TEMPO TOTAL ENTRE RECEPÇÃO E FINALIZAÇÃO DE ATENDIMENTO",
+        "cod8",
+        "cod9",
+        "cod10",
+        "cod11",
+        "cod12",
+        "cod13",
+        "cod14",
+        "cod15",
+      ];
+
+      const WEEKDAYS_PT = [
+        "segunda-feira",
+        "terça-feira",
+        "quarta-feira",
+        "quinta-feira",
+        "sexta-feira",
+        "sábado",
+        "domingo",
+      ];
+
+      const WEEKDAYS_PT_ABBR = [
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex",
+        "sáb",
+        "dom",
+      ];
+
+      const ICON_SOL =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>';
+
+      const ICON_LUA =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+
+      const ICON_CHECK =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"></path></svg>';
+
+      const ICON_X =
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>';
+
+      const RAW_PADROES_ABREVIACAO_MEDICOS = [
+        ["ADRIAN DE LA TORRE RODRIGUEZ", "dr. ADRIAN"],
+        ["ALEXANDRE APOLINARIO DE SOUZA BATISTA", "dr. ALEXANDRE"],
+        ["ALTINO JUNIOR GONCALVES FILHO", "dr. ALTINO"],
+        ["ALESSANDRA BERNARDES PESSOA E SANTOS", "dra. ALESSANDRA"],
+        ["ALICE LOIZ DE OLIVEIRA LOURENÇO", "dra. ALICE"],
+        ["ALINE FABIOLA RODRIGUES ABREU", "dra. ALINE"],
+        ["ANA CLARA RODRIGUES DINIZ", "dra. ANA DINIZ"],
+        ["ANA JULIA FERNANDES CALZOLARI", "dra. ANA J."],
+        ["ANDRESSA DE SOUZA BENTO", "dra. ANDRESSA"],
+        ["ANNA PAULA OLIVEIRA PEREIRA", "dra. ANNA"],
+        ["BEATRIZ SAEZ BRAGANCA REZENDE", "dra. BEATRIZ"],
+        ["BRENDA NAYARA GONTIJO DE MOURA", "dra. BRENDA"],
+        ["BRUNA FERNANDES BARBOSA", "dra. BRUNA F."],
+        ["BRUNA RAFAELLA SILVA", "dra. BRUNA R."],
+        ["DEBORAH LUIZA VILELA DE OLIVEIRA", "dra. DEBORAH"],
+        ["DIANA ISABEL FONSECA GONCALVES", "dra. DIANA"],
+        ["DIEGO DE OLIVEIRA AGUILLERA", "dr. DIEGO"],
+        ["FLAVIO ALEXANDRE PEREIRA PINTO", "dr. FLAVIO"],
+        ["FLAVIA COSTA ALVES", "dra. FLÁVIA"],
+        ["GABRIELA GONÇALVES CAMPOS", "dra. GABRIELA"],
+        ["GABRIELA FERNANDA OLIVEIRA LOPES", "dra. GABRIELA L."],
+        ["GUILHERME GONÇALVES XAVIER", "dr. GUILHERME"],
+        ["GUILHERME SANTOS BATISTA", "dr. GUILHERME B."],
+        ["HEKTOR GUIMARÃES FERREIRA", "dr. HEKTOR"],
+        ["HEKTOR GUIMARAES FERREIRA", "dr. HEKTOR"],
+        ["HELENA GUIMARÃES DIAS BARBOSA", "dra. HELENA"],
+        ["ISABEL TEIXEIRA FERNANDES SILVA MELANINHO", "dra. ISABEL"],
+        ["JADER JOSÉ DOS SANTOS", "dr. JADER"],
+        ["JADER JOSE DOS SANTOS", "dr. JADER"],
+        ["JORGE AUGUSTO CLAVIJO POLANCO", "dr. JORGE"],
+        ["JOSÉ RAFAEL ARAÚJO E COSTA", "dr. JOSÉ R."],
+        ["JOSE RAFAEL ARAUJO E COSTA", "dr. JOSÉ R."],
+        ["JOÃO EDUARDO DOS SANTOS", "dr. JOÃO E."],
+        ["JOAO EDUARDO DOS SANTOS", "dr. JOÃO E."],
+        ["EDUARDO DOS SANTOS", "dr. JOÃO E."],
+        ["JOAO GABRIEL LEAO SPERANCINI AMARAL", "dr. JOÃO GABRIEL"],
+        ["LEAO SPERANCINI AMARAL", "dr. JOÃO GABRIEL"],
+        ["JOAO PEDRO DE CARVALHO VIANA", "dr. JOÃO P."],
+        ["JESSICA AZEVEDO DIAS", "dra. JÉSSICA"],
+        ["LEONARDO ISOLANI E ANDRADE", "dr. LEONARDO I."],
+        ["LEONARDO REIS DE ABREU", "dr. LEONARDO R."],
+        ["LUANA SILVA RABELO DE CARVALHO", "dra. LUANA"],
+        ["MARCELLA RICARDO SILVA SIMONETTI", "dra. MARCELLA"],
+        ["MARCELLY CAROLINE SENRA RODRIGUES", "dra. MARCELLY"],
+        ["MARCIO ANTONIO GASPAR LARA", "dr. MÁRCIO"],
+        ["MARIA CLARA DE SOUZA COUTO", "dra. MARIA C. COUTO"],
+        ["MARIA CLARA GOMES PEREIRA", "dra. MARIA C. PEREIRA"],
+        ["MARIA TEREZA NOGUEIRA FONSECA E SOUZA", "dra. MARIA T."],
+        ["MATHEUS ANTUNES MARTINS", "dr. MATHEUS A."],
+        ["MATHEUS FREITAS DE ASSIS", "dr. MATHEUS F."],
+        ["MILHER SOUSA GREGO", "dr. MILHER"],
+        ["MONIQUE MARIANNE SANTANA SANTOS", "dra. MONIQUE"],
+        ["NATHALIA MAGALHÃES MENDES", "dra. NATHALIA"],
+        ["NATHALIA MAGALHAES MENDES", "dra. NATHALIA"],
+        ["NELY FERNANDES XAVIER CORREIA", "dra. NELY"],
+        ["OSLAIR JOSÉ DE OLIVEIRA JUNIOR", "dr. OSLAIR"],
+        ["OSLAIR JOSE DE OLIVEIRA JUNIOR", "dr. OSLAIR"],
+        ["PALOMA ÁLISTER VILELA DA SILVA", "dra. PALOMA"],
+        ["PALOMA ALISTER VILELA DA SILVA", "dra. PALOMA"],
+        ["PAULO ARGOLLO FERREIRA", "dr. PAULO"],
+        ["PEDRO HENRIQUE SILVA COSTA ABRAHÃO", "dr. PEDRO"],
+        ["PEDRO HENRIQUE SILVA COSTA ABRAHAO", "dr. PEDRO"],
+        ["RAFAEL OLIVEIRA MORAES", "dr. RAFAEL"],
+        ["RENATA CARVALHO FONSECA", "dra. RENATA"],
+        ["RENATO ALCÂNTARA BENTO RAPHAEL", "dr. RENATO"],
+        ["RENATO ALCANTARA BENTO RAPHAEL", "dr. RENATO"],
+        ["ROBINSON JOSÉ MACHADO", "dr. ROBINSON"],
+        ["ROBINSON JOSE MACHADO", "dr. ROBINSON"],
+        ["RODRIGO SILVA VIZA", "dr. RODRIGO"],
+        ["SAMARA PEREIRA DE JESUS RIZZON", "dra. SAMARA <-- quem é?"],
+        ["SAMUEL FILIPPE MOTTA MARTINS DIAS", "dr. SAMUEL"],
+        ["VICTOR DOMINGUES PEREIRA", "dr. VICTOR D."],
+        ["VINICIUS MOURA FERREIRA", "dr. VINICIUS"],
+        ["VINÍCIUS MOURA FERREIRA", "dr. VINICIUS"],
+        ["VITOR AURELIO DE OLIVEIRA SILVA", "dr. VITOR A."],
+        ["VITOR YUKIO NINOMIYA", "dr. X"],
+        ["YANE CAMILO RODRIGUES DA CUNHA", "dra. YANE"],
+        ["YANNICK LUSAMBA DIBUE", "dr. YANNICK"],
+      ];
+
+      const PADROES_ABREVIACAO_MEDICOS = [
+        ...RAW_PADROES_ABREVIACAO_MEDICOS,
+      ].sort((a, b) => {
+        const na = normalizarNomeMedico(a[1]);
+        const nb = normalizarNomeMedico(b[1]);
+        const cmp = na.localeCompare(nb);
+        if (cmp !== 0) return cmp;
+        return (
+          normalizarNomeMedico(b[0]).length - normalizarNomeMedico(a[0]).length
+        );
+      });
+
+      function normalizarNomeMedico(s) {
+        if (s == null || s === "") return "";
+        return String(s)
+          .toUpperCase()
+          .replace(/\u00a0/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
+      function aplicarLayout29(matrix) {
+        let rows = matrix
+          .filter((row) => row.some((c) => String(c ?? "").trim() !== ""))
+          .map((row) => {
+            const obj = {};
+            for (let i = 0; i < 29; i++)
+              obj[NOMES_COLUNAS_29[i]] = row[i] != null ? String(row[i]) : "";
+            return obj;
+          });
+        if (
+          rows.length &&
+          !parseDateTimeBR(rows[0]["DATA-HORA 3: ATENDIMENTO"])
+        ) {
+          rows = rows.slice(1);
+        }
+        return rows;
+      }
+
+      function isTextSemicolonExport(buf) {
+        const bytes = new Uint8Array(buf.slice(0, 8));
+        if (bytes[0] === 0xd0 && bytes[1] === 0xcf) return false;
+        const sample =
+          decodeBuffer(buf, "utf-8") || decodeBuffer(buf, "iso-8859-1") || "";
+        return sample.includes(";") && (sample.match(/;/g) || []).length > 20;
+      }
+
+      function lerComoCsvExportado(buf) {
+        for (const enc of ["utf-8", "iso-8859-1", "windows-1252"]) {
+          const text = decodeBuffer(
+            buf,
+            enc === "windows-1252" ? "windows-1252" : enc,
+          );
+          if (!text || !text.includes(";")) continue;
+          try {
+            const matrix = parseCsvSemicolon(text);
+            if (matrix[0]?.length >= 29) return aplicarLayout29(matrix);
+          } catch {
+            /* tenta próximo encoding */
+          }
+        }
+        throw new Error(
+          "Não foi possível ler o arquivo como export texto (;). Verifique o formato da planilha.",
+        );
+      }
+
+      function maxCamposSemicolon(text, maxLinhas = 100000) {
+        let m = 0;
+        const lines = text.split(/\r?\n/);
+        for (let i = 0; i < Math.min(lines.length, maxLinhas); i++) {
+          m = Math.max(m, lines[i].split(";").length);
+        }
+        return m;
+      }
+
+      function parseCsvSemicolon(text) {
+        const maxCols = maxCamposSemicolon(text);
+        if (maxCols < 2)
+          throw new Error("Arquivo texto sem campos separados por ';'.");
+        const lines = text.split(/\r?\n/);
+        const rows = [];
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const parts = line.split(";");
+          while (parts.length < maxCols) parts.push("");
+          rows.push(parts.slice(0, maxCols));
+        }
+        return rows;
+      }
+
+      function matrixFromSheetJS(buf) {
+        const wb = XLSX.read(buf, {
+          type: "array",
+          raw: false,
+          cellDates: true,
+        });
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        return XLSX.utils.sheet_to_json(sheet, {
+          header: 1,
+          defval: "",
+          raw: false,
+        });
+      }
+
+      function tryExpandSingleColumn(matrix) {
+        if (!matrix.length) return null;
+        const col0 = matrix.map((r) => String((r && r[0]) ?? ""));
+        const withSemi =
+          col0.filter((s) => s.includes(";")).length / Math.max(col0.length, 1);
+        if (withSemi > 0.5) {
+          const split = col0.map((s) => s.split(";"));
+          if (split[0].length >= 29) return split;
+        }
+        return null;
+      }
+
+      async function readFileAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(r.result);
+          r.onerror = () => reject(new Error("Falha ao ler o arquivo."));
+          r.readAsArrayBuffer(file);
+        });
+      }
+
+      function decodeBuffer(buf, encoding) {
+        try {
+          return new TextDecoder(encoding).decode(buf);
+        } catch {
+          return null;
+        }
+      }
+
+      async function carregarPlanilha(file) {
+        const buf = await readFileAsArrayBuffer(file);
+        const name = file.name.toLowerCase();
+
+        if (isTextSemicolonExport(buf)) {
+          return lerComoCsvExportado(buf);
+        }
+
+        if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+          try {
+            const matrix = matrixFromSheetJS(buf);
+            if (matrix[0]?.length >= 29) return aplicarLayout29(matrix);
+            const expanded = tryExpandSingleColumn(matrix);
+            if (expanded) return aplicarLayout29(expanded);
+          } catch {
+            /* fallback CSV */
+          }
+        }
+
+        return lerComoCsvExportado(buf);
+      }
+
+      function parseDateTimeBR(value) {
+        if (value == null || value === "") return null;
+        if (value instanceof Date)
+          return Number.isNaN(value.getTime()) ? null : value;
+
+        const num = Number(value);
+        if (!Number.isNaN(num) && num > 20000 && num < 80000) {
+          const utcDays = Math.floor(num - 25569);
+          return new Date(utcDays * 86400 * 1000);
+        }
+
+        const s = String(value).trim();
+        const m = s.match(
+          /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
+        );
+        if (m) {
+          let [, d, mo, y, h = "0", mi = "0", sec = "0"] = m;
+          if (y.length === 2) y = `20${y}`;
+          const dt = new Date(+y, +mo - 1, +d, +h, +mi, +sec);
+          return Number.isNaN(dt.getTime()) ? null : dt;
+        }
+
+        const dt = new Date(s);
+        return Number.isNaN(dt.getTime()) ? null : dt;
+      }
+
+      function parseIdade(value) {
+        const n = Number(String(value).replace(",", "."));
+        return Number.isNaN(n) ? null : n;
+      }
+
+      function definirPlantao(dt) {
+        if (!dt) return null;
+        const h = dt.getHours();
+        return h >= 7 && h < 19 ? "diurno" : "noturno";
+      }
+
+      function dataAjustada(dt) {
+        if (!dt) return null;
+        const d = new Date(dt);
+        if (d.getHours() >= 7)
+          return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const prev = new Date(d);
+        prev.setDate(prev.getDate() - 1);
+        return new Date(prev.getFullYear(), prev.getMonth(), prev.getDate());
+      }
+
+      function abreviarNomeMedico(nome) {
+        if (nome == null || nome === "") return nome;
+        const nomeNorm = normalizarNomeMedico(nome);
+        for (const [padrao, apelido] of PADROES_ABREVIACAO_MEDICOS) {
+          const p = normalizarNomeMedico(padrao);
+          if (p && nomeNorm.includes(p)) return apelido;
+        }
+        return nome;
+      }
+
+      function parseTempoParaSegundos(tempo) {
+        if (tempo == null || tempo === "") return null;
+        const s = String(tempo).trim().split(".")[0];
+        const partes = s.split(":").map((x) => parseInt(x, 10));
+        if (partes.some((x) => Number.isNaN(x))) return null;
+        let h = 0;
+        let m = 0;
+        let sec = 0;
+        if (partes.length === 3) [h, m, sec] = partes;
+        else if (partes.length === 2) [h, m] = partes;
+        else return null;
+        return h * 3600 + m * 60 + sec;
+      }
+
+      function parseTempoMinutos(tempo) {
+        const seg = parseTempoParaSegundos(tempo);
+        return seg == null ? null : seg / 60;
+      }
+
+      function durUnidade(valor, unidade) {
+        return `${valor}<span class="dur-unit">${unidade}</span>`;
+      }
+
+      function formatarDuracaoEspera(segundos) {
+        if (segundos == null || Number.isNaN(segundos)) return "—";
+        const total = Math.round(Math.max(0, segundos));
+        if (total > 3600) {
+          const h = Math.floor(total / 3600);
+          const m = Math.floor((total % 3600) / 60);
+          const s = total % 60;
+          return `${durUnidade(h, "h")} ${durUnidade(m, "min")} ${durUnidade(s, "seg")}`;
+        }
+        const m = Math.floor(total / 60);
+        const s = total % 60;
+        if (m > 0) return `${durUnidade(m, "min")} ${durUnidade(s, "seg")}`;
+        return durUnidade(s, "seg");
+      }
+
+      function calcularMediaEspera(atendimentos) {
+        const vals = atendimentos
+          .map((r) => r.tempoEspera)
+          .filter((s) => s != null && !Number.isNaN(s));
+        if (!vals.length) return null;
+        return vals.reduce((a, b) => a + b, 0) / vals.length;
+      }
+
+      const DURACAO_PLANTAO_HORAS = 12;
+
+      function getPlantaoAtualDoRelogio(agora = new Date()) {
+        const plantao = definirPlantao(agora);
+        const dataAdj = dataAjustada(agora);
+        const dataISO = toISODateLocal(dataAdj);
+        return { dataISO, plantao, id: plantaoId(dataISO, plantao) };
+      }
+
+      function plantaoEstaEmAndamento(plantaoMeta, agora = new Date()) {
+        if (!plantaoMeta?.dataISO || !plantaoMeta?.plantao) return false;
+        const atual = getPlantaoAtualDoRelogio(agora);
+        return plantaoId(plantaoMeta.dataISO, plantaoMeta.plantao) === atual.id;
+      }
+
+      function horasDecorridasDoPlantao(plantaoMeta, agora = new Date()) {
+        const { dataISO, plantao } = plantaoMeta;
+        if (!dataISO || !plantao) return DURACAO_PLANTAO_HORAS;
+        const [y, mo, d] = dataISO.split("-").map(Number);
+        const inicio =
+          plantao === "diurno"
+            ? new Date(y, mo - 1, d, 7, 0, 0, 0)
+            : new Date(y, mo - 1, d, 19, 0, 0, 0);
+        const ms = agora.getTime() - inicio.getTime();
+        if (ms <= 0) return 0;
+        return Math.min(DURACAO_PLANTAO_HORAS, ms / (3600 * 1000));
+      }
+
+      /** 12h para plantões encerrados; horas decorridas para o plantão atual em andamento. */
+      function getDuracaoReferenciaPlantaoHoras(
+        plantaoMeta,
+        agora = new Date(),
+      ) {
+        if (plantaoEstaEmAndamento(plantaoMeta, agora)) {
+          return horasDecorridasDoPlantao(plantaoMeta, agora);
+        }
+        return DURACAO_PLANTAO_HORAS;
+      }
+
+      function normalizarMetaPorTempo(meta12h, duracaoHoras) {
+        return (meta12h / DURACAO_PLANTAO_HORAS) * duracaoHoras;
+      }
+
+      function calcularPontuacaoProporcional({
+        valorAtual,
+        meta12h,
+        pesoMaximo,
+        duracaoReferenciaHoras,
+      }) {
+        const metaAjustada = normalizarMetaPorTempo(
+          meta12h,
+          duracaoReferenciaHoras,
+        );
+        if (metaAjustada <= 0) return 0;
+        const proporcao = valorAtual / metaAjustada;
+        return clamp(proporcao * pesoMaximo, 0, pesoMaximo);
+      }
+
+      function clamp(value, min, max) {
+        return Math.min(max, Math.max(min, value));
+      }
+
+      /** Interpolação linear entre pontos [valor, pontuação], ordenados por valor crescente. */
+      function interpolateScore(value, points) {
+        if (value == null || Number.isNaN(value)) return 0;
+        const sorted = [...points].sort((a, b) => a[0] - b[0]);
+        if (value <= sorted[0][0]) return sorted[0][1];
+        if (value >= sorted[sorted.length - 1][0])
+          return sorted[sorted.length - 1][1];
+        for (let i = 0; i < sorted.length - 1; i++) {
+          const [x0, y0] = sorted[i];
+          const [x1, y1] = sorted[i + 1];
+          if (value >= x0 && value <= x1) {
+            if (x1 === x0) return y1;
+            return y0 + ((value - x0) / (x1 - x0)) * (y1 - y0);
+          }
+        }
+        return sorted[sorted.length - 1][1];
+      }
+
+      function mediaEsperaMinutos(atendimentos) {
+        const seg = calcularMediaEspera(atendimentos);
+        return seg == null ? null : seg / 60;
+      }
+
+      function roundScore(v) {
+        return Math.round(v * 10) / 10;
+      }
+
+      function formatPartialPts(pontos, max) {
+        return `${formatDecimal(roundScore(pontos))} / ${max}`;
+      }
+
+      const PESO_ESPERA_INDICE_EFICIENCIA = 50;
+
+      function calcularIndiceProdutividade(grupo) {
+        const atendidos = grupo.filter((r) => r.dtAt != null);
+        const verdesValidas = atendidos.filter(
+          (r) =>
+            r.classificacao === "VERDE" &&
+            r.tempoEspera != null &&
+            !Number.isNaN(r.tempoEspera),
+        );
+        const mediaVerdeMin = mediaEsperaMinutos(verdesValidas);
+        const ptsVerdeNeutro = !(verdesValidas.length && mediaVerdeMin != null);
+        const ptsVerde = ptsVerdeNeutro
+          ? PESO_ESPERA_INDICE_EFICIENCIA
+          : interpolateScore(mediaVerdeMin, [
+              [30, 25],
+              [45, 18],
+              [60, 12],
+              [90, 5],
+              [120, 0],
+            ]) * 2;
+
+        const amarelosValidas = atendidos.filter(
+          (r) =>
+            r.classificacao === "AMARELO" &&
+            r.tempoEspera != null &&
+            !Number.isNaN(r.tempoEspera),
+        );
+        const mediaAmareloMin = mediaEsperaMinutos(amarelosValidas);
+        const ptsAmareloNeutro = !(
+          amarelosValidas.length && mediaAmareloMin != null
+        );
+        const ptsAmarelo = ptsAmareloNeutro
+          ? PESO_ESPERA_INDICE_EFICIENCIA
+          : interpolateScore(mediaAmareloMin, [
+              [10, 25],
+              [20, 18],
+              [30, 12],
+              [45, 6],
+              [60, 0],
+            ]) * 2;
+
+        const soma = ptsVerde + ptsAmarelo;
+        const total = Math.round(clamp(soma, 0, 100));
+
+        return {
+          total,
+          parciais: [
+            {
+              label: "Espera média — fichas verdes (50%)",
+              pontos: ptsVerde,
+              max: PESO_ESPERA_INDICE_EFICIENCIA,
+              detalhe: ptsVerdeNeutro
+                ? `Pontuação neutra (${formatNumber(PESO_ESPERA_INDICE_EFICIENCIA)} pts) — sem fichas verdes atendidas com tempo de espera válido.`
+                : `Média ${formatDecimal(mediaVerdeMin)} min em ${verdesValidas.length} ficha(s) verde(s) atendida(s).`,
+            },
+            {
+              label: "Espera média — fichas amarelas (50%)",
+              pontos: ptsAmarelo,
+              max: PESO_ESPERA_INDICE_EFICIENCIA,
+              detalhe: ptsAmareloNeutro
+                ? `Pontuação neutra (${formatNumber(PESO_ESPERA_INDICE_EFICIENCIA)} pts) — sem fichas amarelas atendidas com tempo de espera válido.`
+                : `Média ${formatDecimal(mediaAmareloMin)} min em ${amarelosValidas.length} ficha(s) amarela(s) atendida(s).`,
+            },
+          ],
+        };
+      }
+
+      const COMPONENTES_INDICE_DIFICULDADE = [
+        {
+          key: "total",
+          label: "Volume total de pacientes",
+          peso: 50,
+          meta12h: 150,
+          detalheUnidade: "paciente(s)",
+        },
+        {
+          key: "am",
+          label: "Volume de fichas amarelas",
+          peso: 20,
+          meta12h: 40,
+          detalheUnidade: "ficha(s) amarela(s)",
+        },
+        {
+          key: "lv",
+          label: "Volume laranja + vermelho",
+          peso: 10,
+          meta12h: 6,
+          detalheUnidade: "ficha(s)",
+        },
+        {
+          key: "ate12",
+          label: "Crianças (≤ 12 anos)",
+          peso: 5,
+          meta12h: 30,
+          detalheUnidade: "criança(s)",
+        },
+        {
+          key: "ate2",
+          label: "Crianças (≤ 2 anos)",
+          peso: 5,
+          meta12h: 10,
+          detalheUnidade: "criança(s)",
+        },
+        {
+          key: "maior60",
+          label: "Idosos (≥ 60 anos)",
+          peso: 5,
+          meta12h: 30,
+          detalheUnidade: "idoso(s)",
+        },
+        {
+          key: "maior80",
+          label: "Idosos (≥ 80 anos)",
+          peso: 5,
+          meta12h: 10,
+          detalheUnidade: "idoso(s)",
+        },
+      ];
+
+      function detalheComponenteDificuldade({
+        valorAtual,
+        meta12h,
+        duracaoReferenciaHoras,
+        detalheUnidade,
+        emAndamento,
+      }) {
+        const metaAjustada = normalizarMetaPorTempo(
+          meta12h,
+          duracaoReferenciaHoras,
+        );
+        const horasFmt = formatDecimal(duracaoReferenciaHoras);
+        const metaFmt = formatDecimal(metaAjustada);
+        if (emAndamento) {
+          if (metaAjustada > 0 && valorAtual >= metaAjustada) {
+            return `${valorAtual} ${detalheUnidade} em ${horasFmt}h de plantão (equivalente ao teto proporcional atual).`;
+          }
+          return `${valorAtual} ${detalheUnidade} em ${horasFmt}h de plantão (teto proporcional: ${metaFmt}).`;
+        }
+        if (metaAjustada > 0 && valorAtual >= metaAjustada) {
+          return `${valorAtual} ${detalheUnidade} no plantão (≥ teto de ${metaFmt} em 12h).`;
+        }
+        return `${valorAtual} ${detalheUnidade} no plantão (teto: ${metaFmt} em 12h).`;
+      }
+
+      function calcularIndiceDificuldade(
+        contagens,
+        plantaoMeta,
+        agora = new Date(),
+      ) {
+        const c = contagens;
+        const duracaoReferenciaHoras = getDuracaoReferenciaPlantaoHoras(
+          plantaoMeta,
+          agora,
+        );
+        const emAndamento = plantaoEstaEmAndamento(plantaoMeta, agora);
+
+        const parciais = COMPONENTES_INDICE_DIFICULDADE.map(
+          ({ key, label, peso, meta12h, detalheUnidade }) => {
+            const valorAtual = c[key] ?? 0;
+            const pontos = calcularPontuacaoProporcional({
+              valorAtual,
+              meta12h,
+              pesoMaximo: peso,
+              duracaoReferenciaHoras,
+            });
+            return {
+              label,
+              pontos,
+              max: peso,
+              detalhe: detalheComponenteDificuldade({
+                valorAtual,
+                meta12h,
+                duracaoReferenciaHoras,
+                detalheUnidade,
+                emAndamento,
+              }),
+            };
+          },
+        );
+
+        const soma = parciais.reduce((acc, item) => acc + item.pontos, 0);
+        const total = Math.round(clamp(soma, 0, 100));
+
+        return {
+          total,
+          parciais,
+          duracaoReferenciaHoras,
+          emAndamento,
+        };
+      }
+
+      function getDificuldadeAtualizada(p, agora = new Date()) {
+        return calcularIndiceDificuldade(
+          p.contagens,
+          { dataISO: p.dataISO, plantao: p.plantao },
+          agora,
+        );
+      }
+
+      /** Média de espera excluindo as 5 fichas com menor e as 5 com maior tempo (KPI geral). */
+      function calcularMediaEsperaAparada(atendimentos) {
+        const vals = atendimentos
+          .map((r) => r.tempoEspera)
+          .filter((s) => s != null && !Number.isNaN(s))
+          .sort((a, b) => a - b);
+        if (!vals.length) return null;
+        if (vals.length <= 10)
+          return vals.reduce((a, b) => a + b, 0) / vals.length;
+        const trimmed = vals.slice(5, vals.length - 5);
+        return trimmed.reduce((a, b) => a + b, 0) / trimmed.length;
+      }
+
+      const CORES_RISCO = ["AZUL", "VERDE", "AMARELO", "LARANJA", "VERMELHO"];
+
+      const COR_FICHA_CLASS = {
+        AZUL: "azul",
+        VERDE: "verde",
+        AMARELO: "amarelo",
+        LARANJA: "laranja",
+        VERMELHO: "vermelho",
+      };
+
+      function contarAtendimentos(rows) {
+        const idades = rows.map((r) => r.idade);
+        const clas = rows.map((r) => r.classificacao);
+        const total = rows.length;
+        const ate12 = idades.filter((i) => i != null && i <= 12).length;
+        const ate2 = idades.filter((i) => i != null && i <= 2).length;
+        const maior60 = idades.filter((i) => i != null && i >= 60).length;
+        const maior80 = idades.filter((i) => i != null && i >= 80).length;
+        const am = clas.filter((c) => c === "AMARELO").length;
+        const lv = clas.filter(
+          (c) => c === "LARANJA" || c === "VERMELHO",
+        ).length;
+        return { total, ate12, ate2, maior60, maior80, am, lv };
+      }
+
+      function calcularPontos(rows) {
+        const c = contarAtendimentos(rows);
+        return (
+          c.total +
+          c.ate12 +
+          c.ate2 +
+          c.maior60 +
+          c.maior80 +
+          c.am * 2 +
+          c.lv * 5
+        );
+      }
+
+      function fmtDate(d) {
+        if (!d) return "";
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        return `${dd}/${mm}/${d.getFullYear()}`;
+      }
+
+      /** Converte "dd/mm/yyyy" para "dd/mm/yy" (ano com dois dígitos). */
+      function fmtDataAno2(dataStr) {
+        const partes = String(dataStr || "").split("/");
+        if (partes.length !== 3) return dataStr || "";
+        const [dd, mm, yyyy] = partes;
+        return `${dd}/${mm}/${yyyy.slice(-2)}`;
+      }
+
+      /** Abrevia o nome completo do dia da semana (ex.: "segunda-feira" -> "seg"). */
+      function diaSemanaAbrev(diaSemana) {
+        const idx = WEEKDAYS_PT.indexOf(diaSemana);
+        return idx === -1 ? diaSemana : WEEKDAYS_PT_ABBR[idx];
+      }
+
+      function toISODateLocal(d) {
+        if (!d) return null;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      }
+
+      function fmtHhmm(dt) {
+        if (!dt) return "-";
+        return `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
+      }
+
+      function round1(v) {
+        if (v == null || Number.isNaN(v)) return null;
+        return Math.round(v * 10) / 10;
+      }
+
+      function processarRegistros(rawRows) {
+        const obrigatorias = [
+          "DATA-HORA 3: ATENDIMENTO",
+          "DATA-HORA 2: ACOLHIMENTO",
+          "IDADE",
+          "MÉDICO",
+          "CLASSIFICAÇÃO",
+        ];
+        for (const c of obrigatorias) {
+          if (!(c in (rawRows[0] || {}))) {
+            throw new Error(`Coluna obrigatória ausente: ${c}`);
+          }
+        }
+
+        const rows = rawRows.map((r) => {
+          const dtAt = parseDateTimeBR(r["DATA-HORA 3: ATENDIMENTO"]);
+          const dtAc = parseDateTimeBR(r["DATA-HORA 2: ACOLHIMENTO"]);
+          const idade = parseIdade(r["IDADE"]);
+          const medico = abreviarNomeMedico(r["MÉDICO"]);
+          const classificacao =
+            String(r["CLASSIFICAÇÃO"] ?? "")
+              .trim()
+              .toUpperCase() || null;
+          const tempo4 = parseTempoMinutos(r["TEMPO 4: DURAÇÃO ATENDIMENTO"]);
+          const tempoEspera = parseTempoParaSegundos(
+            r["TEMPO 3: ESPERA ACOLHIMENTO-ATENDIMENTO"],
+          );
+          const plantao = definirPlantao(dtAt);
+          const dataAdj = dataAjustada(dtAt);
+          return {
+            dtAt,
+            dtAc,
+            idade,
+            medico: medico || "(Sem nome)",
+            classificacao,
+            tempo4,
+            tempoEspera,
+            plantao,
+            dataAdj,
+          };
+        });
+
+        const tempoMedioPorGrupo = new Map();
+        const valid = rows.filter((r) => r.tempo4 != null && r.tempo4 <= 60);
+        const groupKey = (r) =>
+          `${fmtDate(r.dataAdj)}|${r.plantao}|${r.medico}`;
+        const buckets = new Map();
+        for (const r of valid) {
+          const k = groupKey(r);
+          if (!buckets.has(k)) buckets.set(k, []);
+          buckets.get(k).push(r.tempo4);
+        }
+        for (const [k, vals] of buckets) {
+          tempoMedioPorGrupo.set(
+            k,
+            round1(vals.reduce((a, b) => a + b, 0) / vals.length),
+          );
+        }
+        for (const r of rows) {
+          r.tempoMedio = tempoMedioPorGrupo.get(groupKey(r)) ?? null;
+        }
+
+        return rows;
+      }
+
+      /** Espera acolhimento → médico (min): acima disso não entra nas médias (KPIs e gráfico de espera por hora). */
+      const ESPERA_MEDICA_MAX_MINUTOS = 360;
+
+      function calcularEstatisticasKpi(grupo) {
+        const atendidos = grupo.filter((r) => r.dtAt != null);
+        const porCor = {};
+        for (const cor of CORES_RISCO) {
+          const todosCor = grupo.filter((r) => r.classificacao === cor);
+          const atendidosCor = todosCor.filter((r) => r.dtAt != null);
+          porCor[cor] = {
+            total: todosCor.length,
+            mediaEspera: calcularMediaEspera(atendidosCor),
+          };
+        }
+        return {
+          tempoMedioEspera: calcularMediaEsperaAparada(atendidos),
+          porCor,
+        };
+      }
+
+      function weekdayPt(date) {
+        if (!date) return "-";
+        const d = date.getDay();
+        return WEEKDAYS_PT[d === 0 ? 6 : d - 1];
+      }
+
+      function plantaoId(dataISO, plantao) {
+        return `${dataISO || "sem-data"}|${plantao || "-"}`;
+      }
+
+      const HORAS_PLANTAO_DIURNO = [
+        7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+      ];
+      const HORAS_PLANTAO_NOTURNO = [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
+
+      /** Sempre 7h–19h (diurno) ou 19h–7h do dia seguinte (noturno), com ou sem dados. */
+      function horasDoPlantao(tipoPlantao) {
+        return tipoPlantao === "diurno"
+          ? HORAS_PLANTAO_DIURNO
+          : HORAS_PLANTAO_NOTURNO;
+      }
+
+      /** Rótulo do eixo X por intervalo (ex.: 7→"7-8h", 18→"18-19h", 23→"23-0h"). */
+      function labelIntervaloHoraPlantao(h) {
+        const next = (h + 1) % 24;
+        return `${h}-${next}h`;
+      }
+
+      /** Minutos desde o início do plantão (eixo X contínuo do gráfico de espera). */
+      function minutosDesdeInicioPlantao(dt, tipoPlantao) {
+        if (!dt) return null;
+        const h = dt.getHours();
+        const m = dt.getMinutes();
+        if (tipoPlantao === "diurno") {
+          if (h < 7 || h > 18) return null;
+          return (h - 7) * 60 + m;
+        }
+        if (h >= 19) return (h - 19) * 60 + m;
+        if (h <= 6) return (5 + h) * 60 + m;
+        return null;
+      }
+
+      function duracaoPlantaoMinutos(tipoPlantao) {
+        return horasDoPlantao(tipoPlantao).length * 60;
+      }
+
+      function horarioFromMinutosPlantao(minutos, tipoPlantao) {
+        const m = Math.round(Number(minutos) || 0);
+        if (tipoPlantao === "diurno") {
+          const h = 7 + Math.floor(m / 60);
+          const min = m % 60;
+          return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+        }
+        const totalMin = 19 * 60 + m;
+        const h = Math.floor(totalMin / 60) % 24;
+        const min = totalMin % 60;
+        return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+      }
+
+      function formatEsperaEixoMinutos(min) {
+        const m = Math.round(Number(min) || 0);
+        if (m === 0) return "";
+        if (m < 60) return `${m}min`;
+        const h = Math.floor(m / 60);
+        const r = m % 60;
+        if (r === 0) return `${h}h`;
+        return `${h}h${r}min`;
+      }
+
+      function valorNumericoPontoGrafico(v) {
+        if (v == null) return null;
+        if (typeof v === "object" && v !== null && "y" in v) {
+          const y = Number(v.y);
+          return Number.isNaN(y) ? null : y;
+        }
+        const n = Number(v);
+        return Number.isNaN(n) ? null : n;
+      }
+
+      function maxValorDatasets(datasets) {
+        let maxVal = 0;
+        for (const ds of datasets || []) {
+          for (const v of ds.data || []) {
+            const n = valorNumericoPontoGrafico(v);
+            if (n == null) continue;
+            maxVal = Math.max(maxVal, n);
+          }
+        }
+        return maxVal;
+      }
+
+      function esperaYScaleMax(datasets) {
+        const maxVal = maxValorDatasets(datasets);
+        const max = Math.max(120, Math.ceil(maxVal / 20) * 20);
+        return maxVal >= max ? max + 20 : max;
+      }
+
+      function atendimentosYScaleMax(datasets) {
+        const maxVal = maxValorDatasets(datasets);
+        const max = Math.max(10, Math.ceil(maxVal / 2) * 2);
+        return maxVal >= max ? max + 2 : max;
+      }
+
+      /** Paleta premium por médico — fonte única para Chart.js e bar race. */
+      const DOCTOR_PALETTE = [
+        "#4F66B3", // azul slate premium
+        "#0F9D7A", // verde jade elegante
+        "#C89B2F", // dourado suave
+        "#C96A3D", // laranja queimado premium
+        "#8B5FBF", // roxo sofisticado
+        "#2F7A94", // azul petróleo
+        "#C45C7A", // rosa queimado editorial
+        "#5F8F3A", // verde oliva moderno
+        "#B85C4B", // terracota sofisticado
+        "#6C7486", // cinza azulado premium
+        "#2F5E9E", // azul profundo
+        "#A86B2A", // âmbar elegante
+      ];
+
+      function hexToRgba(hex, alpha) {
+        const clean = hex.replace("#", "");
+        const bigint = parseInt(clean, 16);
+        const r = (bigint >> 16) & 255;
+        const g = (bigint >> 8) & 255;
+        const b = bigint & 255;
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      }
+
+      /** Clareia cor hex (~8%) para gradiente horizontal das barras da corrida. */
+      function lightenHex(hex, amount = 0.08) {
+        const clean = hex.replace("#", "");
+        const bigint = parseInt(clean, 16);
+        let r = (bigint >> 16) & 255;
+        let g = (bigint >> 8) & 255;
+        let b = bigint & 255;
+        r = Math.min(255, Math.round(r + (255 - r) * amount));
+        g = Math.min(255, Math.round(g + (255 - g) * amount));
+        b = Math.min(255, Math.round(b + (255 - b) * amount));
+        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+      }
+
+      function doctorColorByIndex(i) {
+        return DOCTOR_PALETTE[i % DOCTOR_PALETTE.length];
+      }
+
+      function medicosDoGrupo(grupo) {
+        return [...new Set(grupo.map((r) => r.medico))].sort((a, b) =>
+          String(a).localeCompare(String(b), "pt-BR"),
+        );
+      }
+
+      function raceBarGradientForColor(hex) {
+        const light = lightenHex(hex, 0.08);
+        return `linear-gradient(90deg, ${hex} 0%, ${light} 100%)`;
+      }
+
+      function buildLineDatasetStyle(color) {
+        return {
+          borderColor: color,
+          backgroundColor: hexToRgba(color, 0.12),
+          pointBackgroundColor: color,
+          pointHoverBackgroundColor: color,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 1.5,
+          borderWidth: 2.25,
+          tension: 0.35,
+          fill: false,
+          _baseColor: color,
+        };
+      }
+
+      /** Realça o dataset sob o cursor e esmaece os demais (hover do gráfico de linhas). */
+      function applyDatasetHoverHighlight(chart, datasetIndex) {
+        let changed = false;
+        chart.data.datasets.forEach((ds, i) => {
+          const color = ds._baseColor;
+          if (!color) return;
+          let next;
+          if (datasetIndex == null) {
+            next = {
+              borderColor: color,
+              backgroundColor: hexToRgba(color, 0.12),
+              borderWidth: 2.25,
+              fill: false,
+              order: 0,
+            };
+          } else if (i === datasetIndex) {
+            next = {
+              borderColor: color,
+              backgroundColor: hexToRgba(color, 0.16),
+              borderWidth: 3,
+              fill: "origin",
+              order: 0,
+            };
+          } else {
+            next = {
+              borderColor: hexToRgba(color, 0.18),
+              backgroundColor: "transparent",
+              borderWidth: 1.5,
+              fill: false,
+              order: 1,
+            };
+          }
+          if (
+            ds.borderColor !== next.borderColor ||
+            ds.fill !== next.fill ||
+            ds.borderWidth !== next.borderWidth
+          ) {
+            changed = true;
+          }
+          Object.assign(ds, next);
+        });
+        if (changed) chart.update();
+      }
+
+      const ESPERA_CHART_VERDE = "#4a9d6e";
+      const ESPERA_CHART_AMARELO = "#c9a227";
+      const ESPERA_FILL_VERDE = "rgba(116, 198, 156, 0.26)";
+      const ESPERA_FILL_AMARELO = "rgba(232, 203, 120, 0.32)";
+
+      const OUTLIER_MIN_N = 4;
+      const OUTLIER_GAP_MIN = 90;
+      const OUTLIER_RATIO = 2.2;
+      const OUTLIER_MAD_Z = 3.5;
+
+      function median(arr) {
+        const a = [...arr].sort((x, y) => x - y);
+        const mid = Math.floor(a.length / 2);
+        return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+      }
+
+      function separarOutliersSuperiores(vals) {
+        const clean = vals.filter((v) => v != null && !Number.isNaN(v));
+        if (!clean.length) return { normais: [], outliers: [] };
+
+        const sorted = [...clean].sort((a, b) => a - b);
+
+        if (sorted.length < OUTLIER_MIN_N) {
+          const maior = sorted.at(-1);
+          const segundo = sorted.at(-2);
+
+          if (
+            segundo != null &&
+            maior - segundo >= OUTLIER_GAP_MIN &&
+            maior / Math.max(segundo, 1) >= OUTLIER_RATIO
+          ) {
+            return {
+              normais: sorted.slice(0, -1),
+              outliers: [maior],
+            };
+          }
+
+          return { normais: sorted, outliers: [] };
+        }
+
+        const med = median(sorted);
+        const desvios = sorted.map((v) => Math.abs(v - med));
+        const mad = median(desvios) || 1;
+
+        const normais = [];
+        const outliers = [];
+
+        for (const v of sorted) {
+          const z = (0.6745 * Math.abs(v - med)) / mad;
+          if (v > med && z > OUTLIER_MAD_Z) outliers.push(v);
+          else normais.push(v);
+        }
+
+        return { normais, outliers };
+      }
+
+      function buildEsperaFaixaDatasets(
+        label,
+        maxData,
+        minData,
+        lineColor,
+        fillColor,
+      ) {
+        const ponto = {
+          pointBackgroundColor: lineColor,
+          pointHoverBackgroundColor: lineColor,
+          pointBorderColor: "#ffffff",
+          pointBorderWidth: 1.5,
+          pointRadius: 3,
+          pointHoverRadius: 4,
+          borderWidth: 2,
+          tension: 0.32,
+          spanGaps: false,
+        };
+        return [
+          {
+            label,
+            data: maxData,
+            borderColor: lineColor,
+            backgroundColor: fillColor,
+            fill: "+1",
+            ...ponto,
+          },
+          {
+            label: `${label}__min`,
+            data: minData,
+            borderColor: lineColor,
+            backgroundColor: "transparent",
+            fill: false,
+            ...ponto,
+          },
+        ];
+      }
+
+      const CHART_THEME = {
+        text: "#8B95A8",
+        textStrong: "#0B1220",
+        grid: "rgba(15, 23, 42, 0.04)",
+        espera: "#6C7486",
+        font: "'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif",
+      };
+
+      function chartScaleDefaults() {
+        return {
+          grid: { color: CHART_THEME.grid, drawBorder: false },
+          ticks: {
+            color: CHART_THEME.text,
+            font: { family: CHART_THEME.font, size: 11 },
+            padding: 8,
+          },
+          title: {
+            display: true,
+            color: CHART_THEME.text,
+            font: { family: CHART_THEME.font, size: 11, weight: "500" },
+          },
+        };
+      }
+
+      function chartBaseOptions() {
+        const scale = chartScaleDefaults();
+        return {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: {
+              display: true,
+              position: "bottom",
+              labels: {
+                color: CHART_THEME.text,
+                boxWidth: 10,
+                boxHeight: 10,
+                padding: 16,
+                usePointStyle: true,
+                pointStyle: "circle",
+                font: { family: CHART_THEME.font, size: 11 },
+              },
+            },
+            tooltip: {
+              mode: "index",
+              intersect: false,
+              backgroundColor: "rgba(255, 255, 255, 0.88)",
+              titleColor: CHART_THEME.textStrong,
+              bodyColor: "#475569",
+              borderColor: "rgba(255, 255, 255, 0.9)",
+              borderWidth: 1,
+              padding: 14,
+              cornerRadius: 18,
+              titleFont: { family: CHART_THEME.font, size: 12, weight: "600" },
+              bodyFont: { family: CHART_THEME.font, size: 11 },
+            },
+          },
+          scales: {
+            x: { ...scale },
+            y: { ...scale, beginAtZero: true },
+          },
+        };
+      }
+
+      /** Último índice em `horas` com pelo menos um atendimento (ordem do plantão, inclusive noturno). */
+      function ultimoIndiceComAtendimentoHoras(grupo, horas) {
+        const indices = horas
+          .map((h, index) =>
+            grupo.some((r) => r.dtAt && r.dtAt.getHours() === h) ? index : null,
+          )
+          .filter((index) => index !== null);
+        return indices.length ? Math.max(...indices) : -1;
+      }
+
+      function valorAtendimentoHoraMedico(rows, tipo) {
+        if (tipo === "pontos") {
+          return rows.reduce((s, r) => s + calcularPontos([r]), 0);
+        }
+        return rows.length;
+      }
+
+      function buildChartHourlyPorMedico(
+        grupo,
+        tipoPlantao,
+        tipo = "pacientes",
+      ) {
+        const horas = horasDoPlantao(tipoPlantao);
+        const ultimoIndice = ultimoIndiceComAtendimentoHoras(grupo, horas);
+        const medicos = medicosDoGrupo(grupo);
+        const datasets = medicos.map((medico, i) => {
+          const color = doctorColorByIndex(i);
+          return {
+            label: medico,
+            data: horas.map((h, index) => {
+              if (index > ultimoIndice) return null;
+              const rows = grupo.filter(
+                (r) => r.medico === medico && r.dtAt && r.dtAt.getHours() === h,
+              );
+              return valorAtendimentoHoraMedico(rows, tipo);
+            }),
+            ...buildLineDatasetStyle(color),
+            spanGaps: false,
+            pointRadius: 3,
+            pointHoverRadius: 4,
+          };
+        });
+        return {
+          labels: horas.map((h) => labelIntervaloHoraPlantao(h)),
+          datasets,
+        };
+      }
+
+      /** Espera: por hora, linha de máximo e mínimo com faixa preenchida (verde / amarelo). */
+      function buildChartEsperaMedicaPorHora(grupo, tipoPlantao) {
+        const horas = horasDoPlantao(tipoPlantao);
+        const labels = horas.map((h) => labelIntervaloHoraPlantao(h));
+
+        function esperaValidaMin(r) {
+          if (!r.dtAt || !r.dtAc) return null;
+          const min = (r.dtAt - r.dtAc) / 60000;
+          if (min > ESPERA_MEDICA_MAX_MINUTOS || min < 0 || Number.isNaN(min))
+            return null;
+          return min;
+        }
+
+        const ultimoIndice = (() => {
+          const indices = horas
+            .map((h, index) =>
+              grupo.some(
+                (r) =>
+                  (r.classificacao === "VERDE" ||
+                    r.classificacao === "AMARELO") &&
+                  r.dtAt &&
+                  r.dtAc &&
+                  r.dtAt.getHours() === h &&
+                  esperaValidaMin(r) != null,
+              )
+                ? index
+                : null,
+            )
+            .filter((i) => i !== null);
+          return indices.length ? Math.max(...indices) : -1;
+        })();
+
+        function minMaxPorCor(cor) {
+          const maxData = [];
+          const minData = [];
+          const outlierData = [];
+          for (let i = 0; i < horas.length; i++) {
+            if (i > ultimoIndice) {
+              maxData.push(null);
+              minData.push(null);
+              outlierData.push(null);
+              continue;
+            }
+            const h = horas[i];
+            const vals = grupo
+              .filter(
+                (r) =>
+                  r.classificacao === cor &&
+                  r.dtAt &&
+                  r.dtAc &&
+                  r.dtAt.getHours() === h,
+              )
+              .map(esperaValidaMin)
+              .filter((v) => v != null && !Number.isNaN(v));
+            if (!vals.length) {
+              maxData.push(null);
+              minData.push(null);
+              outlierData.push(null);
+              continue;
+            }
+            const { normais, outliers } = separarOutliersSuperiores(vals);
+            minData.push(vals.length ? round1(Math.min(...vals)) : null);
+            maxData.push(normais.length ? round1(Math.max(...normais)) : null);
+            outlierData.push(
+              outliers.length ? round1(Math.max(...outliers)) : null,
+            );
+          }
+          return { maxData, minData, outlierData };
+        }
+
+        const verde = minMaxPorCor("VERDE");
+        const amarelo = minMaxPorCor("AMARELO");
+
+        return {
+          labels,
+          datasets: [
+            ...buildEsperaFaixaDatasets(
+              "Verde",
+              verde.maxData,
+              verde.minData,
+              ESPERA_CHART_VERDE,
+              ESPERA_FILL_VERDE,
+            ),
+            ...buildEsperaFaixaDatasets(
+              "Amarelo",
+              amarelo.maxData,
+              amarelo.minData,
+              ESPERA_CHART_AMARELO,
+              ESPERA_FILL_AMARELO,
+            ),
+            {
+              label: "Verde — ponto discrepante",
+              data: verde.outlierData,
+              borderColor: ESPERA_CHART_VERDE,
+              backgroundColor: ESPERA_CHART_VERDE,
+              showLine: false,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              pointStyle: "circle",
+              spanGaps: false,
+            },
+            {
+              label: "Amarelo — ponto discrepante",
+              data: amarelo.outlierData,
+              borderColor: ESPERA_CHART_AMARELO,
+              backgroundColor: ESPERA_CHART_AMARELO,
+              showLine: false,
+              pointRadius: 5,
+              pointHoverRadius: 7,
+              pointStyle: "circle",
+              spanGaps: false,
+            },
+          ],
+        };
+      }
+
+      /** Pontos acumulados até cada slot de 10 min do plantão (bar chart race). */
+      function minutosDoPlantao(tipoPlantao) {
+        const frames = [];
+
+        if (tipoPlantao === "diurno") {
+          for (let h = 7; h <= 18; h++) {
+            for (let m = 0; m < 60; m += 10) {
+              frames.push({
+                h,
+                m,
+                label: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+              });
+            }
+          }
+          return frames;
+        }
+
+        const horas = [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
+        for (const h of horas) {
+          for (let m = 0; m < 60; m += 10) {
+            frames.push({
+              h,
+              m,
+              label: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+            });
+          }
+        }
+
+        return frames;
+      }
+
+      function buildBarRacePontosPorTempo(grupo, tipoPlantao) {
+        const framesTempo = minutosDoPlantao(tipoPlantao);
+        const medicos = medicosDoGrupo(grupo);
+        const ordemHorasNot = [19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6];
+
+        function ordemNoPlantao(dt) {
+          if (!dt) return null;
+          const h = dt.getHours();
+          const m = dt.getMinutes();
+
+          if (tipoPlantao === "diurno") {
+            if (h < 7 || h > 18) return null;
+            return (h - 7) * 60 + m;
+          }
+
+          const idx = ordemHorasNot.indexOf(h);
+          if (idx === -1) return null;
+          return idx * 60 + m;
+        }
+
+        const frames = framesTempo.map((frame) => {
+          let limiteMin;
+
+          if (tipoPlantao === "diurno") {
+            limiteMin = (frame.h - 7) * 60 + frame.m;
+          } else {
+            limiteMin = ordemHorasNot.indexOf(frame.h) * 60 + frame.m;
+          }
+
+          const acumuladoAteFrame = grupo.filter((r) => {
+            const ordem = ordemNoPlantao(r.dtAt);
+            return ordem !== null && ordem <= limiteMin;
+          });
+
+          const rows = medicos
+            .map((medico) => ({
+              medico,
+              pontos: calcularPontos(
+                acumuladoAteFrame.filter((r) => r.medico === medico),
+              ),
+            }))
+            .sort(
+              (a, b) =>
+                b.pontos - a.pontos ||
+                String(a.medico).localeCompare(String(b.medico), "pt-BR"),
+            );
+
+          return {
+            hour: frame.label,
+            rows,
+          };
+        });
+
+        const finalFrame = frames[frames.length - 1];
+        const maxFinalPontos = Math.max(
+          ...(finalFrame?.rows || []).map((r) => r.pontos || 0),
+          1,
+        );
+
+        return {
+          maxFinalPontos,
+          frames,
+        };
+      }
+
+      function barRaceCorPorMedico(grupo) {
+        const medicos = medicosDoGrupo(grupo);
+        return Object.fromEntries(
+          medicos.map((m, i) => [
+            m,
+            raceBarGradientForColor(doctorColorByIndex(i)),
+          ]),
+        );
+      }
+
+      function buildDashboardPayload(rows) {
+        const plantaoMap = new Map();
+        const dataAdjPorStr = new Map();
+
+        for (const r of rows) {
+          if (!r.dataAdj || !r.plantao) continue;
+          const dataStr = fmtDate(r.dataAdj);
+          dataAdjPorStr.set(dataStr, r.dataAdj);
+          const dk = `${dataStr}|${r.plantao}`;
+          if (!plantaoMap.has(dk)) plantaoMap.set(dk, []);
+          plantaoMap.get(dk).push(r);
+        }
+
+        const plantoes = [];
+        for (const [dk, grupo] of plantaoMap) {
+          if (!grupo.length) continue;
+          const barra = dk.lastIndexOf("|");
+          const dataStr = dk.slice(0, barra);
+          const plantao = dk.slice(barra + 1);
+          const dataAdj = dataAdjPorStr.get(dataStr) || grupo[0].dataAdj;
+          if (!dataAdj) continue;
+          const dataISO = toISODateLocal(dataAdj);
+          const diaSemana = weekdayPt(dataAdj);
+          const id = plantaoId(dataISO, plantao);
+          const navLabel = `${plantao}, ${diaSemana}, ${dataStr}`;
+
+          const medMap = new Map();
+          for (const r of grupo) {
+            if (!medMap.has(r.medico)) medMap.set(r.medico, []);
+            medMap.get(r.medico).push(r);
+          }
+
+          const tableRows = [];
+          for (const [medico, dados] of medMap) {
+            const c = contarAtendimentos(dados);
+            tableRows.push({
+              medico,
+              geral: c.total,
+              ate2: c.ate2,
+              ate12: c.ate12,
+              maior60: c.maior60,
+              maior80: c.maior80,
+              am: c.am,
+              lv: c.lv,
+              pontos: calcularPontos(dados),
+            });
+          }
+          tableRows.sort(
+            (a, b) => b.pontos - a.pontos || b.geral - a.geral || b.am - a.am,
+          );
+
+          const stats = calcularEstatisticasKpi(grupo);
+          const contagens = contarAtendimentos(grupo);
+          const detalheEficiencia = calcularIndiceProdutividade(grupo);
+          const detalheDificuldade = calcularIndiceDificuldade(contagens, {
+            dataISO,
+            plantao,
+          });
+
+          plantoes.push({
+            id,
+            navLabel,
+            data: dataStr,
+            dataISO,
+            diaSemana,
+            plantao,
+            contagens,
+            registros: grupo,
+            totalPacientes: grupo.length,
+            kpis: {
+              totalPacientes: grupo.length,
+              tempoMedioEspera: stats.tempoMedioEspera,
+              risco: stats.porCor,
+              indiceProdutividade: detalheEficiencia.total,
+              indiceDificuldade: detalheDificuldade.total,
+              indicesDetalhe: {
+                eficiencia: detalheEficiencia,
+                dificuldade: detalheDificuldade,
+              },
+            },
+            rows: tableRows,
+            chartHourly: buildChartHourlyPorMedico(grupo, plantao, "pacientes"),
+            chartHourlyPontos: buildChartHourlyPorMedico(
+              grupo,
+              plantao,
+              "pontos",
+            ),
+            chartEsperaPorHora: buildChartEsperaMedicaPorHora(grupo, plantao),
+            barRacePontos: buildBarRacePontosPorTempo(grupo, plantao),
+            barRaceCorPorMedico: barRaceCorPorMedico(grupo),
+          });
+        }
+
+        plantoes.sort((a, b) => {
+          const d = (a.dataISO || "").localeCompare(b.dataISO || "");
+          if (d !== 0) return d;
+          if (a.plantao === b.plantao) return 0;
+          return a.plantao === "diurno" ? -1 : 1;
+        });
+
+        return { plantoes };
+      }
+
+      async function processarArquivo(file) {
+        const raw = await carregarPlanilha(file);
+        if (!raw.length) throw new Error("Planilha vazia.");
+        const rows = processarRegistros(raw);
+        return {
+          ready: true,
+          meta: {
+            arquivo: file.name,
+            atualizadoEm: new Date().toISOString().slice(0, 19),
+          },
+          data: buildDashboardPayload(rows),
+        };
+      }
+
+      /* ——— UI ——— */
+      const state = {
+        raw: null,
+        plantoes: [],
+        selectedId: null,
+        sortBy: "pontos",
+        sortDir: "desc",
+        charts: {},
+        lastFile: null,
+        /** "absoluto" = atendimentos na hora; "acumulado" = soma desde o início do plantão (por médico). */
+        hourlyAtendMode: "absoluto",
+        /** "pacientes" = contagem; "pontos" = pontuação por atendimento (mesma regra da tabela). */
+        hourlyAtendTipo: "pacientes",
+        raceTimers: {},
+        raceFrame: {},
+        racePlayingId: null,
+      };
+      let dashboardControlsWired = false;
+      let plantaoMainDelegatesWired = false;
+
+      const el = {
+        app: document.getElementById("app"),
+        plantaoNavWrap: document.getElementById("plantaoNavWrap"),
+        plantaoNav: document.getElementById("plantaoNav"),
+        plantaoMain: document.getElementById("plantaoMain"),
+        plantaoViews: document.getElementById("plantaoViews"),
+        uploadOverlay: document.getElementById("uploadOverlay"),
+        uploadForm: document.getElementById("uploadForm"),
+        fileInput: document.getElementById("fileInput"),
+        uploadDrop: document.getElementById("uploadDrop"),
+        uploadError: document.getElementById("uploadError"),
+        uploadDropText: document.getElementById("uploadDropText"),
+        uploadProgress: document.getElementById("uploadProgress"),
+        changeSheetBtn: document.getElementById("changeSheetBtn"),
+        indicadoresFooter: document.getElementById("indicadoresFooter"),
+      };
+
+      const TABLE_COLUMNS = [
+        ["medico", "Médico"],
+        ["geral", "Total pacientes"],
+        ["ate2", "≤ 2 anos"],
+        ["ate12", "≤ 12 anos"],
+        ["maior60", "≥ 60 anos"],
+        ["maior80", "≥ 80 anos"],
+        ["am", "Amarelas"],
+        ["lv", "Laranja + Vermelho"],
+        ["pontos", "Pontos"],
+      ];
+
+      function formatNumber(value) {
+        if (value === null || value === undefined || Number.isNaN(value))
+          return "-";
+        return new Intl.NumberFormat("pt-BR", {
+          maximumFractionDigits: 1,
+        }).format(value);
+      }
+
+      function formatDecimal(value, fractionDigits = 1) {
+        if (value === null || value === undefined || Number.isNaN(value))
+          return "-";
+        return new Intl.NumberFormat("pt-BR", {
+          minimumFractionDigits: fractionDigits,
+          maximumFractionDigits: fractionDigits,
+        }).format(value);
+      }
+
+      function formatKpi(value, suffix = "") {
+        if (value === null || value === undefined || Number.isNaN(value))
+          return "-";
+        if (typeof value === "number") return `${formatNumber(value)}${suffix}`;
+        return String(value);
+      }
+
+      function cardTemplate(
+        label,
+        value,
+        small = false,
+        footnote = "",
+        extraClass = "",
+      ) {
+        const cls = small ? "value small" : "value";
+        const note = footnote ? `<p class="kpi-footnote">${footnote}</p>` : "";
+        const cardCls = extraClass ? ` kpi-card ${extraClass}` : " kpi-card";
+        return `<article class="${cardCls.trim()}"><span class="label">${label}</span><div class="${cls}">${value}</div>${note}</article>`;
+      }
+
+      function riskCardTemplate(cor, total, mediaSegundos) {
+        const tagCls = COR_FICHA_CLASS[cor] || cor.toLowerCase();
+        const espera = formatarDuracaoEspera(mediaSegundos);
+        return `<article class="kpi-card kpi-card-risco"><span class="kpi-risco-tag ${tagCls}">${cor}</span><div class="value small">${total}</div><div class="kpi-sub">${espera}</div></article>`;
+      }
+
+      function formatIndiceScoreHtml(score) {
+        if (score == null || Number.isNaN(score)) {
+          return `<span class="index-main">—</span>`;
+        }
+        return `<span class="index-main">${score}</span><span class="dur-unit">/100</span>`;
+      }
+
+      function indexItemHtml(score, subtitle) {
+        return `<div class="index-item">
+    <div class="index-value">${formatIndiceScoreHtml(score)}</div>
+    <div class="kpi-sub">${subtitle}</div>
+  </div>`;
+      }
+
+      function indicesCombinedCardTemplate(
+        indiceEficiencia,
+        indiceDificuldade,
+      ) {
+        return `<article class="kpi-card kpi-card-indices">
+    <span class="label">Indicadores do plantão</span>
+    <div class="indices-inline">
+      ${indexItemHtml(indiceEficiencia, "Eficiência")}
+      <div class="indices-divider" role="presentation"></div>
+      ${indexItemHtml(indiceDificuldade, "Carga")}
+    </div>
+  </article>`;
+      }
+
+      function renderParciaisLista(parciais) {
+        return `<ul class="indicadores-parciais-list">${parciais
+          .map(
+            (p) => `<li>
+      <span class="parcial-label">${p.label}</span>
+      <span class="parcial-pts">${formatPartialPts(p.pontos, p.max)}</span>
+      <span class="parcial-detalhe">${p.detalhe}</span>
+    </li>`,
+          )
+          .join("")}</ul>`;
+      }
+
+      const INDICES_METODOLOGIA_HTML = `
+    <h2>Como os indicadores são calculados</h2>
+    <p>Os índices vão de <strong>0 a 100</strong> (inteiros). O índice de eficiência usa interpolação linear entre faixas de espera; o de dificuldade usa pontuação linear proporcional ao tempo de referência do plantão. A soma das parciais é limitada entre 0 e 100.</p>
+
+    <h3>Índice de eficiência</h3>
+    <p>Mede o desempenho operacional do plantão (quanto maior, melhor). Composição: <strong>50% espera em fichas verdes</strong> + <strong>50% espera em fichas amarelas</strong> (soma até 100 pts).</p>
+    <ul>
+      <li><strong>Espera média — fichas verdes (50% · até 50 pts):</strong> tempo médio de espera (campo TEMPO 3) das fichas verdes atendidas. Escala: ≤ 30 min → 50 pts; 45 → 36; 60 → 24; 90 → 10; ≥ 120 → 0 (interpolação linear). Sem fichas verdes válidas: <strong>50 pts neutros</strong> (não penaliza).</li>
+      <li><strong>Espera média — fichas amarelas (50% · até 50 pts):</strong> mesma lógica para amarelas. ≤ 10 min → 50; 20 → 36; 30 → 24; 45 → 12; ≥ 60 → 0. Sem amarelas válidas: <strong>50 pts neutros</strong>.</li>
+    </ul>
+
+    <h3>Índice de dificuldade</h3>
+    <p>Mede a carga assistencial do plantão até o momento considerado (quanto maior, mais pesado). Plantões encerrados usam referência de <strong>12h</strong>; o plantão atual em andamento normaliza cada componente pelas <strong>horas já decorridas</strong>. Cada componente usa interpolação linear proporcional ao teto de 12h:</p>
+    <ul>
+      <li><strong>Volume total (50 pts):</strong> teto 150 pacientes em 12h (12,5/h).</li>
+      <li><strong>Fichas amarelas (20 pts):</strong> teto 40 em 12h (3,33/h).</li>
+      <li><strong>Laranja + vermelho (10 pts):</strong> teto 6 em 12h (0,5/h).</li>
+      <li><strong>Crianças ≤ 12 anos (5 pts):</strong> teto 30 em 12h (2,5/h).</li>
+      <li><strong>Crianças ≤ 2 anos (5 pts):</strong> teto 10 em 12h (0,83/h).</li>
+      <li><strong>Idosos ≥ 60 anos (5 pts):</strong> teto 30 em 12h (2,5/h).</li>
+      <li><strong>Idosos ≥ 80 anos (5 pts):</strong> teto 10 em 12h (0,83/h).</li>
+    </ul>
+    <p>Exemplo: com 8h de plantão, o teto proporcional de laranja + vermelho é 4 fichas; 4 fichas nesse momento equivalem a 10/10 pts nesse componente.</p>
+  `;
+
+      function renderIndicadoresFooter(p) {
+        const meta = document.getElementById("indicadoresMetodologia");
+        const parciaisEl = document.getElementById("indicadoresParciais");
+        const footer = document.getElementById("indicadoresFooter");
+        if (!meta || !parciaisEl || !footer) return;
+
+        if (!meta.dataset.ready) {
+          meta.innerHTML = INDICES_METODOLOGIA_HTML;
+          meta.dataset.ready = "1";
+        }
+
+        if (!p?.kpis?.indicesDetalhe || !p.contagens) {
+          parciaisEl.innerHTML = "";
+          footer.hidden = true;
+          return;
+        }
+
+        const { eficiencia } = p.kpis.indicesDetalhe;
+        const dificuldade = getDificuldadeAtualizada(p);
+        parciaisEl.innerHTML = `
+    <h2>Parciais do plantão selecionado</h2>
+    <p class="indicadores-plantao-ref">${p.navLabel}${dificuldade.emAndamento ? ` · ${formatDecimal(dificuldade.duracaoReferenciaHoras)}h decorridas (plantão em andamento)` : ""}</p>
+    <div class="indicadores-parciais-grid">
+      <div class="indicadores-parciais-bloco">
+        <h4>Índice de eficiência — ${eficiencia.total}/100</h4>
+        ${renderParciaisLista(eficiencia.parciais)}
+      </div>
+      <div class="indicadores-parciais-bloco">
+        <h4>Índice de dificuldade — ${dificuldade.total}/100</h4>
+        ${renderParciaisLista(dificuldade.parciais)}
+      </div>
+    </div>
+  `;
+        footer.hidden = false;
+      }
+
+      /** Ordem visual: plantão mais recente à esquerda (sem alterar o array original). */
+      function plantoesParaExibicao() {
+        return [...state.plantoes].reverse();
+      }
+
+      /** Agrupa plantões por data para a barra em 2 linhas (diurno / noturno). */
+      function agruparPlantoesPorData(plantoes) {
+        const porData = new Map();
+        for (const p of plantoes) {
+          const key = p.dataISO || p.data || "";
+          if (!porData.has(key)) {
+            porData.set(key, {
+              dataISO: p.dataISO,
+              data: p.data,
+              diaSemana: p.diaSemana,
+              diurno: null,
+              noturno: null,
+            });
+          }
+          const grupo = porData.get(key);
+          if (p.plantao === "diurno") grupo.diurno = p;
+          else if (p.plantao === "noturno") grupo.noturno = p;
+        }
+        return [...porData.values()].sort((a, b) =>
+          (b.dataISO || "").localeCompare(a.dataISO || ""),
+        );
+      }
+
+      /** Agrupa os dias (já agrupados por data) em semanas seg→dom, preservando a posição por dia da semana. */
+      function agruparPlantoesPorSemana(grupos) {
+        const semanas = new Map();
+        for (const g of grupos) {
+          const idx = WEEKDAYS_PT.indexOf(g.diaSemana);
+          if (idx === -1 || !g.dataISO) continue;
+          const [y, m, d] = g.dataISO.split("-").map(Number);
+          const segunda = new Date(y, m - 1, d);
+          segunda.setDate(segunda.getDate() - idx);
+          const semanaKey = toISODateLocal(segunda);
+          if (!semanas.has(semanaKey))
+            semanas.set(semanaKey, new Array(7).fill(null));
+          semanas.get(semanaKey)[idx] = g;
+        }
+        return [...semanas.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([, dias]) => dias);
+      }
+
+      function plantaoChipHalfHtml(p, turno) {
+        if (!p) {
+          return `<button type="button" class="plantao-chip-half placeholder" tabindex="-1" aria-hidden="true" disabled></button>`;
+        }
+        const active = p.id === state.selectedId;
+        const icon = turno === "diurno" ? ICON_SOL : ICON_LUA;
+        const label = `Plantão ${turno}, ${p.diaSemana} ${p.data}`;
+        const eficiencia = p.kpis?.indiceProdutividade;
+        const badge =
+          eficiencia == null
+            ? ""
+            : eficiencia >= 80
+              ? `<span class="plantao-chip-half-badge is-ok">${ICON_CHECK}</span>`
+              : `<span class="plantao-chip-half-badge is-low">${ICON_X}</span>`;
+        return `<button type="button" class="plantao-chip-half${active ? " active" : ""}" data-id="${p.id}" role="tab" aria-selected="${active}" aria-label="${label}">${icon}${badge}</button>`;
+      }
+
+      function compareValues(a, b, key, dir = "desc") {
+        const av = a[key] ?? -Infinity;
+        const bv = b[key] ?? -Infinity;
+        if (typeof av === "string")
+          return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+        return dir === "asc" ? av - bv : bv - av;
+      }
+
+      /** Dados para o gráfico de atendimentos/h: absoluto ou acumulado por médico ao longo do plantão. */
+      function prepareAtendimentosPorHoraChartData(base) {
+        const labels = [...base.labels];
+        const datasets = base.datasets.map((ds) => {
+          const dadosBase = [...(ds.data || [])];
+          if (state.hourlyAtendMode !== "acumulado") {
+            return { ...ds, data: dadosBase, spanGaps: false };
+          }
+          let sum = 0;
+          const data = dadosBase.map((v) => {
+            if (v == null || Number.isNaN(v)) return null;
+            sum += Number(v) || 0;
+            return sum;
+          });
+          return { ...ds, data, spanGaps: false };
+        });
+        return { labels, datasets };
+      }
+
+      function syncHourlyAtendModeButtons() {
+        document.querySelectorAll(".hourly-atend-mode").forEach((btn) => {
+          const active = btn.dataset.mode === state.hourlyAtendMode;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
+
+      function syncHourlyAtendTipoButtons() {
+        document.querySelectorAll(".hourly-atend-tipo").forEach((btn) => {
+          const active = btn.dataset.tipo === state.hourlyAtendTipo;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
+
+      function hourlyChartBaseData(p) {
+        return state.hourlyAtendTipo === "pontos"
+          ? p.chartHourlyPontos || { labels: [], datasets: [] }
+          : p.chartHourly || { labels: [], datasets: [] };
+      }
+
+      function hourlyChartYTitle() {
+        const acum = state.hourlyAtendMode === "acumulado";
+        if (state.hourlyAtendTipo === "pontos") {
+          return acum ? "Pontos acumulados" : "Pontos na hora";
+        }
+        return acum ? "Atendimentos acumulados" : "Atendimentos na hora";
+      }
+
+      /** Escapa valor para usar em atributo HTML entre aspas duplas. */
+      function escHtmlAttr(val) {
+        return String(val)
+          .replace(/&/g, "&amp;")
+          .replace(/"/g, "&quot;")
+          .replace(/</g, "&lt;");
+      }
+
+      function stopRaceTimer(plantaoId) {
+        if (state.raceTimers[plantaoId]) {
+          clearInterval(state.raceTimers[plantaoId]);
+          delete state.raceTimers[plantaoId];
+        }
+      }
+
+      function stopAllRaceTimers() {
+        Object.keys(state.raceTimers).forEach((id) => stopRaceTimer(id));
+        state.racePlayingId = null;
+      }
+
+      /** Compatível com `barRacePontos` como array (legado) ou `{ maxFinalPontos, frames }`. */
+      function getBarRaceFrames(p) {
+        const race = p?.barRacePontos;
+        if (!race) return [];
+        return Array.isArray(race) ? race : race.frames || [];
+      }
+
+      function getBarRaceMaxPontosFinal(p) {
+        const race = p?.barRacePontos;
+        if (!race) return 1;
+        if (
+          !Array.isArray(race) &&
+          typeof race.maxFinalPontos === "number" &&
+          Number.isFinite(race.maxFinalPontos)
+        ) {
+          return Math.max(1, race.maxFinalPontos);
+        }
+        const frames = Array.isArray(race) ? race : race.frames || [];
+        const last = frames.at(-1);
+        return Math.max(1, ...(last?.rows || []).map((r) => r.pontos || 0));
+      }
+
+      function syncRacePlayButton(p) {
+        const btn = [
+          ...(el.plantaoViews?.querySelectorAll(".race-play") || []),
+        ].find((b) => b.dataset.id === p.id);
+        if (!btn) return;
+        const frames = getBarRaceFrames(p);
+        const n = frames.length;
+        const playing =
+          state.racePlayingId === p.id && !!state.raceTimers[p.id];
+        if (playing) {
+          btn.textContent = "Rodando…";
+          btn.disabled = true;
+          return;
+        }
+        btn.disabled = false;
+        const fi = state.raceFrame[p.id] ?? 0;
+        const atEnd = n > 0 && fi >= n - 1;
+        btn.textContent = atEnd ? "Reiniciar" : "Reproduzir";
+      }
+
+      function syncAllRacePlayButtons() {
+        state.plantoes.forEach(syncRacePlayButton);
+      }
+
+      /**
+       * Renderiza um quadro da corrida; useFlip anima reposicionamento vertical (FLIP).
+       */
+      function renderBarRaceFrame(p, frameIndex, useFlip) {
+        const stage = document.getElementById(`race-stage-${p.id}`);
+        const hourEl = document.getElementById(`race-hour-${p.id}`);
+        const frames = getBarRaceFrames(p);
+        if (!stage || !hourEl) return;
+
+        if (!frames.length) {
+          hourEl.textContent = "Sem dados de tempo.";
+          stage.innerHTML = `<p class="chart-subhint">Não há horários para reproduzir neste plantão.</p>`;
+          syncRacePlayButton(p);
+          return;
+        }
+
+        const idx = Math.max(0, Math.min(frameIndex, frames.length - 1));
+        state.raceFrame[p.id] = idx;
+
+        const frame = frames[idx];
+        const maxRace = getBarRaceMaxPontosFinal(p);
+        const palette = p.barRaceCorPorMedico || {};
+
+        hourEl.textContent = `Momento — ${frame.hour} · Quadro ${idx + 1} de ${frames.length}`;
+
+        const oldRects = new Map();
+        if (useFlip) {
+          stage.querySelectorAll(".race-row[data-med]").forEach((el) => {
+            oldRects.set(el.dataset.med, el.getBoundingClientRect());
+          });
+        }
+
+        const html = frame.rows
+          .map((row, rank) => {
+            const pts = row.pontos || 0;
+            const widthPct = Math.max(0, Math.min(100, (pts / maxRace) * 100));
+            const paletteKeys = Object.keys(palette);
+            const colorIdx = paletteKeys.indexOf(row.medico);
+            const bg =
+              palette[row.medico] ||
+              raceBarGradientForColor(
+                doctorColorByIndex(colorIdx >= 0 ? colorIdx : rank),
+              );
+            const medEsc = escHtmlAttr(row.medico);
+            return `<div class="race-row" data-med="${medEsc}" data-rank="${rank}">
+        <span class="race-label" title="${medEsc}">${escHtmlAttr(row.medico)}</span>
+        <div class="race-bar-wrap"><div class="race-bar" style="width:${widthPct}%;background:${bg}"></div></div>
+        <span class="race-value">${formatNumber(pts)}</span>
+      </div>`;
+          })
+          .join("");
+
+        stage.innerHTML = html;
+
+        if (useFlip && oldRects.size) {
+          requestAnimationFrame(() => {
+            stage.querySelectorAll(".race-row[data-med]").forEach((el) => {
+              const id = el.dataset.med;
+              const prev = oldRects.get(id);
+              if (!prev) return;
+              const next = el.getBoundingClientRect();
+              const dy = prev.top - next.top;
+              if (Math.abs(dy) < 0.55) return;
+              el.style.transition = "none";
+              el.style.transform = `translateY(${dy}px)`;
+              requestAnimationFrame(() => {
+                el.style.transition =
+                  "transform 0.52s cubic-bezier(0.22, 1, 0.36, 1)";
+                el.style.transform = "translateY(0)";
+              });
+              el.addEventListener(
+                "transitionend",
+                (ev) => {
+                  if (ev.propertyName !== "transform") return;
+                  el.style.transition = "";
+                  el.style.transform = "";
+                },
+                { once: true },
+              );
+            });
+          });
+        }
+
+        syncRacePlayButton(p);
+      }
+
+      function playBarRace(p) {
+        const frames = getBarRaceFrames(p);
+        if (!frames.length) return;
+
+        stopRaceTimer(p.id);
+        state.racePlayingId = p.id;
+
+        let idx = 0;
+        renderBarRaceFrame(p, idx, false);
+
+        if (frames.length <= 1) {
+          state.racePlayingId = null;
+          syncRacePlayButton(p);
+          return;
+        }
+
+        state.raceTimers[p.id] = setInterval(() => {
+          idx += 1;
+          if (idx >= frames.length) {
+            stopRaceTimer(p.id);
+            if (state.racePlayingId === p.id) state.racePlayingId = null;
+            state.raceFrame[p.id] = frames.length - 1;
+            renderBarRaceFrame(p, state.raceFrame[p.id], false);
+            return;
+          }
+          renderBarRaceFrame(p, idx, true);
+        }, 180);
+      }
+
+      function wirePlantaoMainDelegatesOnce() {
+        if (plantaoMainDelegatesWired) return;
+        plantaoMainDelegatesWired = true;
+        el.plantaoMain.addEventListener("click", (e) => {
+          const raceBtn = e.target.closest(".race-play");
+          if (raceBtn) {
+            const pid = raceBtn.dataset.id;
+            const pMatch = state.plantoes.find((x) => x.id === pid);
+            if (pMatch) playBarRace(pMatch);
+            return;
+          }
+
+          const tipoBtn = e.target.closest(".hourly-atend-tipo");
+          if (tipoBtn) {
+            const tipo = tipoBtn.dataset.tipo;
+            if (!tipo || tipo === state.hourlyAtendTipo) return;
+            state.hourlyAtendTipo = tipo;
+            syncHourlyAtendTipoButtons();
+            const pTipo = state.plantoes.find((x) => x.id === state.selectedId);
+            if (pTipo) renderPlantaoChart(pTipo);
+            return;
+          }
+
+          const btn = e.target.closest(".hourly-atend-mode");
+          if (!btn) return;
+          const mode = btn.dataset.mode;
+          if (!mode || mode === state.hourlyAtendMode) return;
+          state.hourlyAtendMode = mode;
+          syncHourlyAtendModeButtons();
+          syncHourlyAtendTipoButtons();
+          const p = state.plantoes.find((x) => x.id === state.selectedId);
+          if (p) renderPlantaoChart(p);
+        });
+      }
+
+      function renderPlantaoNav() {
+        const hojeISO = toISODateLocal(new Date());
+        const grupos = agruparPlantoesPorData(state.plantoes);
+        el.plantaoNav.innerHTML = agruparPlantoesPorSemana(grupos)
+          .map((dias) =>
+            dias
+              .map((col) => {
+                if (!col) {
+                  return `<div class="plantao-chip-empty" aria-hidden="true"></div>`;
+                }
+                const isToday = col.dataISO === hojeISO;
+                return `
+    <div class="plantao-chip${isToday ? " is-today" : ""}">
+      <div class="plantao-chip-header">
+        <span class="plantao-chip-weekday">${diaSemanaAbrev(col.diaSemana)}</span>
+        <span class="plantao-chip-date">${fmtDataAno2(col.data)}</span>
+        ${isToday ? `<span class="plantao-chip-today-badge">hoje</span>` : ""}
+      </div>
+      <div class="plantao-chip-body">
+        ${plantaoChipHalfHtml(col.diurno, "diurno")}
+        ${plantaoChipHalfHtml(col.noturno, "noturno")}
+      </div>
+    </div>
+  `;
+              })
+              .join(""),
+          )
+          .join("");
+        el.plantaoNav
+          .querySelectorAll(".plantao-chip-half:not(.placeholder)")
+          .forEach((btn) => {
+            btn.addEventListener("click", () => selectPlantao(btn.dataset.id));
+          });
+      }
+
+      function renderPlantaoViews() {
+        el.plantaoViews.innerHTML = plantoesParaExibicao()
+          .map(
+            (p) => `
+    <section class="plantao-view${p.id === state.selectedId ? " active" : ""}" id="view-${p.id}" data-id="${p.id}" role="tabpanel">
+      <div class="kpis-plantao-wrap">
+        <section class="kpis kpis-plantao kpis-row-main" id="kpis-main-${p.id}"></section>
+        <section class="kpis kpis-plantao kpis-row-risco" id="kpis-risco-${p.id}"></section>
+      </div>
+      <div class="table-wrap glass" style="padding:0">
+        <table id="table-${p.id}">
+          <thead><tr>${TABLE_COLUMNS.map(([key, label]) => `<th data-sort="${key}">${label}</th>`).join("")}</tr></thead>
+          <tbody id="tbody-${p.id}"></tbody>
+        </table>
+      </div>
+      <article class="chart-card glass hourly-chart">
+        <div class="chart-card-head">
+          <h3>Atendimentos por horário (por médico)</h3>
+          <div class="chart-switches-col">
+            <div class="chart-switch-wrap" aria-label="Tipo do gráfico de atendimentos">
+              <span class="chart-switch-label">Tipo</span>
+              <div class="chart-switch" role="group">
+                <button type="button" class="chart-switch-btn hourly-atend-tipo" data-tipo="pacientes">Pacientes</button>
+                <button type="button" class="chart-switch-btn hourly-atend-tipo" data-tipo="pontos">Pontos</button>
+              </div>
+            </div>
+            <div class="chart-switch-wrap" aria-label="Modo do gráfico de atendimentos">
+              <span class="chart-switch-label">Modo</span>
+              <div class="chart-switch" role="group">
+                <button type="button" class="chart-switch-btn hourly-atend-mode" data-mode="absoluto">Absoluto</button>
+                <button type="button" class="chart-switch-btn hourly-atend-mode" data-mode="acumulado">Acumulado</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <canvas id="chart-${p.id}"></canvas>
+      </article>
+      <article class="chart-card glass hourly-chart">
+        <h3>Tempo de espera para atendimento médico por hora do dia</h3>
+        <p class="chart-subhint">Faixa entre menor e maior tempo de espera por hora. Pontos discrepantes são exibidos isoladamente e não deformam a linha superior. Valores acima de 6 horas (360 min) foram excluídos.</p>
+        <canvas id="chart-espera-${p.id}"></canvas>
+      </article>
+      <article class="chart-card glass race-card">
+        <div class="chart-card-head">
+          <h3>Corrida de pontos por médico</h3>
+          <div class="race-controls">
+            <button type="button" class="chart-switch-btn race-play" data-id="${p.id}">Reproduzir</button>
+          </div>
+        </div>
+        <p class="chart-subhint">Ranking animado pela pontuação acumulada a cada 10 minutos do plantão (mesma regra da coluna Pontos).</p>
+        <div class="race-hour" id="race-hour-${p.id}" aria-live="polite"></div>
+        <div class="race-stage" id="race-stage-${p.id}"></div>
+      </article>
+    </section>
+  `,
+          )
+          .join("");
+        el.plantaoViews.querySelectorAll("th[data-sort]").forEach((th) => {
+          th.addEventListener("click", () => {
+            const key = th.dataset.sort;
+            if (state.sortBy === key)
+              state.sortDir = state.sortDir === "desc" ? "asc" : "desc";
+            else {
+              state.sortBy = key;
+              state.sortDir = key === "medico" ? "asc" : "desc";
+            }
+            renderSelectedPlantao();
+          });
+        });
+        syncHourlyAtendModeButtons();
+        syncHourlyAtendTipoButtons();
+      }
+
+      function renderPlantaoTable(p) {
+        const tbody = document.getElementById(`tbody-${p.id}`);
+        if (!tbody) return;
+        const rows = [...p.rows].sort((a, b) => {
+          const cmp = compareValues(a, b, state.sortBy, state.sortDir);
+          if (cmp !== 0 || state.sortBy !== "pontos") return cmp;
+          return b.geral - a.geral || b.am - a.am;
+        });
+        const topPontos = rows.length
+          ? rows.reduce((a, b) => (b.pontos > a.pontos ? b : a)).medico
+          : null;
+        tbody.innerHTML = rows
+          .map(
+            (r) => `
+    <tr class="${r.medico === topPontos ? "highlight" : ""}">
+      <td>${r.medico}</td>
+      <td>${r.geral}</td>
+      <td>${r.ate2}</td>
+      <td>${r.ate12}</td>
+      <td>${r.maior60}</td>
+      <td>${r.maior80}</td>
+      <td>${r.am}</td>
+      <td>${r.lv}</td>
+      <td><strong>${r.pontos}</strong></td>
+    </tr>
+  `,
+          )
+          .join("");
+      }
+
+      function renderPlantaoKpis(p) {
+        const kpiMain = document.getElementById(`kpis-main-${p.id}`);
+        const kpiRisco = document.getElementById(`kpis-risco-${p.id}`);
+        if (!kpiMain || !kpiRisco) return;
+        const k = p.kpis;
+        const dificuldade = getDificuldadeAtualizada(p);
+        kpiMain.innerHTML = [
+          cardTemplate(
+            "Total de pacientes",
+            k.totalPacientes,
+            false,
+            "",
+            "kpi-card--total",
+          ),
+          cardTemplate(
+            "Tempo médio de espera",
+            formatarDuracaoEspera(k.tempoMedioEspera),
+            true,
+            "* Excluídos os 5 maiores e 5 menores tempos.",
+            "kpi-card--espera",
+          ),
+          indicesCombinedCardTemplate(k.indiceProdutividade, dificuldade.total),
+        ].join("");
+        kpiRisco.innerHTML = CORES_RISCO.map((cor) => {
+          const d = k.risco?.[cor] || { total: 0, mediaEspera: null };
+          return riskCardTemplate(cor, d.total, d.mediaEspera);
+        }).join("");
+      }
+
+      function renderPlantaoChart(p) {
+        const chartKey = (suffix) => `chart:${p.id}:${suffix}`;
+
+        function destroyChart(suffix) {
+          const key = chartKey(suffix);
+          if (state.charts[key]) {
+            state.charts[key].destroy();
+            delete state.charts[key];
+          }
+        }
+
+        destroyChart("atend");
+        destroyChart("espera");
+
+        const canvasAtend = document.getElementById(`chart-${p.id}`);
+        if (canvasAtend) {
+          const atendData = prepareAtendimentosPorHoraChartData(
+            hourlyChartBaseData(p),
+          );
+          const yTitle = hourlyChartYTitle();
+          const atendOpts = chartBaseOptions();
+          atendOpts.plugins.tooltip = { enabled: false };
+          atendOpts.scales.x.title = {
+            ...atendOpts.scales.x.title,
+            text: "Horário",
+          };
+          atendOpts.scales.y.title = {
+            ...atendOpts.scales.y.title,
+            text: yTitle,
+          };
+          atendOpts.scales.y.max = atendimentosYScaleMax(atendData.datasets);
+          atendOpts.scales.y.ticks = {
+            ...atendOpts.scales.y.ticks,
+            stepSize: 2,
+          };
+          atendOpts.animation = { duration: 200 };
+          atendOpts.hover = { mode: "nearest", intersect: false, axis: "xy" };
+          let atendHoverIndex = null;
+          const ATEND_HOVER_MAX_DIST = 24;
+          atendOpts.onHover = (event, _elements, chart) => {
+            const xScale = chart.scales.x;
+            const yScale = chart.scales.y;
+            const pos =
+              event.type === "mouseout"
+                ? null
+                : Chart.helpers.getRelativePosition(event, chart);
+            const dentroDaArea =
+              pos &&
+              pos.x >= xScale.left &&
+              pos.x <= xScale.right &&
+              pos.y >= yScale.top &&
+              pos.y <= yScale.bottom;
+
+            let idx = null;
+            if (dentroDaArea) {
+              let nearestLabelIndex = 0;
+              let minXDist = Infinity;
+              chart.data.labels.forEach((_, i) => {
+                const dist = Math.abs(xScale.getPixelForValue(i) - pos.x);
+                if (dist < minXDist) {
+                  minXDist = dist;
+                  nearestLabelIndex = i;
+                }
+              });
+
+              let bestIdx = null;
+              let bestDist = Infinity;
+              chart.data.datasets.forEach((ds, i) => {
+                if (!ds._baseColor) return;
+                const val = valorNumericoPontoGrafico(
+                  ds.data?.[nearestLabelIndex],
+                );
+                if (val == null) return;
+                const dist = Math.abs(yScale.getPixelForValue(val) - pos.y);
+                if (dist < bestDist) {
+                  bestDist = dist;
+                  bestIdx = i;
+                }
+              });
+
+              if (bestDist <= ATEND_HOVER_MAX_DIST) idx = bestIdx;
+            }
+
+            if (idx === atendHoverIndex) return;
+            atendHoverIndex = idx;
+            applyDatasetHoverHighlight(chart, idx);
+          };
+          state.charts[chartKey("atend")] = new Chart(canvasAtend, {
+            type: "line",
+            data: atendData,
+            options: atendOpts,
+          });
+        }
+
+        const canvasEsp = document.getElementById(`chart-espera-${p.id}`);
+        if (!canvasEsp) return;
+
+        const esperaOpts = chartBaseOptions();
+        const esperaData = p.chartEsperaPorHora || { labels: [], datasets: [] };
+
+        esperaOpts.plugins.legend.labels.filter = (item) =>
+          !String(item.text).includes("__min");
+        esperaOpts.plugins.tooltip.callbacks = {
+          title(items) {
+            const idx = items?.[0]?.dataIndex;
+            return esperaData.labels?.[idx] ?? "";
+          },
+          label(ctx) {
+            if (String(ctx.dataset.label).includes("__min")) return null;
+            const y = valorNumericoPontoGrafico(ctx.raw);
+            if (y == null) return null;
+            const cor = String(ctx.dataset.label);
+            if (cor.includes("ponto discrepante")) {
+              return `${cor}: ${formatNumber(y)} min`;
+            }
+            const idx = ctx.dataIndex;
+            const minDs = ctx.chart.data.datasets[ctx.datasetIndex + 1];
+            const minVal = minDs?.data?.[idx];
+            if (minVal != null && !Number.isNaN(minVal)) {
+              return `${cor}: ${formatNumber(minVal)} – ${formatNumber(y)} min`;
+            }
+            return `${cor} (máx.): ${formatNumber(y)} min`;
+          },
+        };
+        esperaOpts.scales.x.title = {
+          ...esperaOpts.scales.x.title,
+          text: "Horário (início do atendimento médico)",
+        };
+        esperaOpts.scales.y.title = {
+          ...esperaOpts.scales.y.title,
+          text: "Tempo de espera",
+        };
+        esperaOpts.scales.y.max = esperaYScaleMax(esperaData.datasets);
+        esperaOpts.scales.y.ticks = {
+          ...esperaOpts.scales.y.ticks,
+          stepSize: 20,
+          callback: (value) => formatEsperaEixoMinutos(value),
+        };
+
+        state.charts[chartKey("espera")] = new Chart(canvasEsp, {
+          type: "line",
+          data: esperaData,
+          options: esperaOpts,
+        });
+      }
+
+      function selectPlantao(id) {
+        if (!state.plantoes.some((p) => p.id === id)) return;
+        stopAllRaceTimers();
+        syncAllRacePlayButtons();
+        state.selectedId = id;
+        el.plantaoNav.querySelectorAll(".plantao-chip-half").forEach((btn) => {
+          const active = btn.dataset.id === id;
+          btn.classList.toggle("active", active);
+          btn.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        el.plantaoViews.querySelectorAll(".plantao-view").forEach((view) => {
+          view.classList.toggle("active", view.dataset.id === id);
+        });
+        renderSelectedPlantao();
+      }
+
+      function renderSelectedPlantao() {
+        const p = state.plantoes.find((x) => x.id === state.selectedId);
+        if (!p) return;
+        renderPlantaoKpis(p);
+        renderPlantaoTable(p);
+        renderBarRaceFrame(p, state.raceFrame[p.id] ?? 0, false);
+        renderPlantaoChart(p);
+        renderIndicadoresFooter(p);
+      }
+
+      function setUploadError(message) {
+        el.uploadError.hidden = !message;
+        el.uploadError.textContent = message || "";
+      }
+
+      function showUploadGate(open) {
+        el.uploadOverlay.hidden = !open;
+        el.uploadOverlay.setAttribute("aria-hidden", open ? "false" : "true");
+        if (open) {
+          setUploadError("");
+        }
+        if (el.indicadoresFooter) el.indicadoresFooter.hidden = open;
+      }
+
+      async function bootstrapWithPayload(payload) {
+        stopAllRaceTimers();
+        state.raceFrame = {};
+        state.raw = payload;
+        state.plantoes = payload.data.plantoes || [];
+        state.selectedId =
+          state.plantoes[state.plantoes.length - 1]?.id ?? null;
+        state.charts = {};
+
+        if (!state.plantoes.length) {
+          setUploadError("Nenhum plantão encontrado na planilha.");
+          showUploadGate(true);
+          if (el.indicadoresFooter) el.indicadoresFooter.hidden = true;
+          return;
+        }
+
+        renderPlantaoViews();
+        renderPlantaoNav();
+        el.plantaoNavWrap.hidden = false;
+        el.plantaoMain.hidden = false;
+        selectPlantao(state.selectedId);
+
+        if (!dashboardControlsWired) {
+          el.changeSheetBtn.addEventListener("click", () =>
+            showUploadGate(true),
+          );
+          dashboardControlsWired = true;
+        }
+        el.changeSheetBtn.hidden = false;
+        el.app.classList.remove("loading");
+      }
+
+      function setUploadProcessing(processing) {
+        el.uploadProgress.hidden = !processing;
+        el.uploadDropText.textContent = processing
+          ? "Aguarde…"
+          : "Clique ou arraste o arquivo aqui";
+        el.fileInput.disabled = processing;
+      }
+
+      async function executarAnalise(file) {
+        if (!file) {
+          setUploadError("Escolha um arquivo .xls ou .xlsx.");
+          return;
+        }
+        const ext = file.name.toLowerCase();
+        if (!ext.endsWith(".xls") && !ext.endsWith(".xlsx")) {
+          setUploadError("Formato não suportado. Use .xls ou .xlsx.");
+          return;
+        }
+        setUploadError("");
+        setUploadProcessing(true);
+        try {
+          state.lastFile = file;
+          const payload = await processarArquivo(file);
+          showUploadGate(false);
+          el.fileInput.value = "";
+          await bootstrapWithPayload(payload);
+        } catch (err) {
+          setUploadError(err.message || String(err));
+        } finally {
+          setUploadProcessing(false);
+        }
+      }
+
+      function wireUploadUi() {
+        el.uploadForm.addEventListener("submit", (e) => e.preventDefault());
+
+        el.uploadDrop.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          el.uploadDrop.classList.add("dragover");
+        });
+        el.uploadDrop.addEventListener("dragleave", () =>
+          el.uploadDrop.classList.remove("dragover"),
+        );
+        el.uploadDrop.addEventListener("drop", (e) => {
+          e.preventDefault();
+          el.uploadDrop.classList.remove("dragover");
+          const f = e.dataTransfer.files[0];
+          if (!f) return;
+          const dt = new DataTransfer();
+          dt.items.add(f);
+          el.fileInput.files = dt.files;
+          executarAnalise(f);
+        });
+
+        el.fileInput.addEventListener("change", () => {
+          const file = el.fileInput.files[0];
+          if (file) executarAnalise(file);
+        });
+      }
+
+      function init() {
+        wirePlantaoMainDelegatesOnce();
+        wireUploadUi();
+        showUploadGate(true);
+        el.changeSheetBtn.hidden = true;
+        el.app.classList.remove("loading");
+      }
+
+      init();
+    </script>
+  </body>
+</html>
