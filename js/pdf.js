@@ -71,7 +71,7 @@ const MEDICATION_VALUE_STYLE = {
     color: PDF_COLOR.primary,
     lineHeight: 5.3,
     maxLines: 2,
-    afterGap: 2.0
+    afterGap: 2.0,
   },
   route: {
     style: "normal",
@@ -79,7 +79,7 @@ const MEDICATION_VALUE_STYLE = {
     color: PDF_COLOR.secondary,
     lineHeight: 4.0,
     maxLines: 2,
-    afterGap: 2.0
+    afterGap: 2.0,
   },
   posology: {
     style: "semibold",
@@ -87,15 +87,7 @@ const MEDICATION_VALUE_STYLE = {
     color: PDF_COLOR.posology,
     lineHeight: 4.1,
     maxLines: 3,
-    afterGap: 2.0
-  },
-  dilution: {
-    style: "normal",
-    size: 9,
-    color: PDF_COLOR.secondary,
-    lineHeight: 3.9,
-    maxLines: 4,
-    afterGap: 2.0
+    afterGap: 2.0,
   },
   indication: {
     style: "normal",
@@ -103,8 +95,8 @@ const MEDICATION_VALUE_STYLE = {
     color: PDF_COLOR.secondary,
     lineHeight: 3.9,
     maxLines: 4,
-    afterGap: 2.0
-  }
+    afterGap: 2.0,
+  },
 };
 
 /** Tracking negativo global (mm) — aproxima o kerning editorial do PuxaFicha. */
@@ -565,6 +557,26 @@ function formatPosologyValue(medication) {
   return String(medication.posology || "").trim();
 }
 
+/**
+ * Unidade de dispensação no singular/plural (ex.: "1 ampola", "4 ampolas").
+ */
+function formatDispenseUnit(medication, quantity) {
+  const amount = Number(quantity);
+  const singular = String(medication.unitSingular || "").trim();
+  const plural = String(medication.unitPlural || "").trim();
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return "";
+  }
+
+  const unit = amount === 1 ? singular : plural || singular;
+  if (!unit) {
+    return String(amount);
+  }
+
+  return `${amount} ${unit}`;
+}
+
 function drawInstitutionalHeader(doc, documentModel, logoImage) {
   const left = PDF_LAYOUT.logoX;
   const textX = PDF_LAYOUT.textBlockX;
@@ -729,7 +741,7 @@ function drawSideRail(doc, documentModel) {
 function drawMainTitle(doc, documentModel) {
   const x = PDF_LAYOUT.mainX;
   const titleSize = 19;
-  const titleCharSpace = -0.38;
+  const titleCharSpace = -0.32;
   const titleLineHeight = 6.8;
   let y = pdfBaselineFromTop(titleSize, PDF_LAYOUT.mainTop);
 
@@ -801,7 +813,7 @@ function drawMedicationBlock(doc, medication, startY, indication) {
     valueColor: styles.medication.color,
     lineHeight: styles.medication.lineHeight,
     maxLines: styles.medication.maxLines,
-    afterGap: styles.medication.afterGap
+    afterGap: styles.medication.afterGap,
   });
 
   y = drawMedicationFieldRow(
@@ -815,8 +827,23 @@ function drawMedicationBlock(doc, medication, startY, indication) {
       valueColor: styles.posology.color,
       lineHeight: styles.posology.lineHeight,
       maxLines: styles.posology.maxLines,
-      afterGap: styles.posology.afterGap
-    }
+      afterGap: styles.posology.afterGap,
+    },
+  );
+
+  y = drawMedicationFieldRow(
+    doc,
+    "QUANTIDADE",
+    formatDispenseUnit(medication, medication.quantity),
+    y,
+    {
+      valueStyle: styles.posology.style,
+      valueSize: styles.posology.size,
+      valueColor: styles.posology.color,
+      lineHeight: styles.posology.lineHeight,
+      maxLines: styles.posology.maxLines,
+      afterGap: styles.posology.afterGap,
+    },
   );
 
   y = drawMedicationFieldRow(doc, "VIA DE ADM", medication.route, y, {
@@ -825,7 +852,7 @@ function drawMedicationBlock(doc, medication, startY, indication) {
     valueColor: styles.route.color,
     lineHeight: styles.route.lineHeight,
     maxLines: styles.route.maxLines,
-    afterGap: styles.route.afterGap
+    afterGap: styles.route.afterGap,
   });
 
   // `null` omite a linha (itens intermediários em listas com vários medicamentos).
@@ -837,19 +864,9 @@ function drawMedicationBlock(doc, medication, startY, indication) {
       lineHeight: styles.indication.lineHeight,
       maxLines: styles.indication.maxLines,
       afterGap: styles.indication.afterGap,
-      allowEmpty: true
+      allowEmpty: true,
     });
   }
-
-  y = drawMedicationFieldRow(doc, "DILUIÇÃO", medication.dilution, y, {
-    valueStyle: styles.dilution.style,
-    valueSize: styles.dilution.size,
-    valueColor: styles.dilution.color,
-    lineHeight: styles.dilution.lineHeight,
-    maxLines: styles.dilution.maxLines,
-    afterGap: styles.dilution.afterGap,
-    allowEmpty: true
-  });
 
   return y;
 }

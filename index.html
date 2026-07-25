@@ -4,41 +4,85 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Controlado</title>
-  <link rel="icon" href="assets/favicon.png" type="image/png">
+  <link rel="icon" href="assets/favicon.png?v=2" type="image/png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/print.css">
 </head>
 <body>
   <main class="app">
-    <header class="app-header card">
-      <h1 class="app-title">Controle de Medicamentos</h1>
-      <p id="app-unit-subtitle" class="app-subtitle"></p>
-    </header>
+    <section
+      class="panel card request-meta"
+      aria-label="Paciente e quantidade"
+    >
+      <header class="request-meta__brand">
+        <h1 class="request-meta__title">Controle de Medicamentos</h1>
+        <p id="app-unit-subtitle" class="request-meta__subtitle"></p>
+      </header>
 
-    <section class="panel card" aria-label="Formulário de solicitação">
-      <section class="panel-section" aria-labelledby="paciente-heading">
-        <h2 id="paciente-heading" class="section-title">Paciente</h2>
-        <div class="field-group">
-          <input
-            id="patient-name"
-            class="field-input"
-            type="text"
-            placeholder="Digite o nome completo"
-            aria-label="Nome do paciente"
-            autocomplete="off"
-            spellcheck="false"
-          >
+      <div class="request-meta__fields">
+        <div class="request-meta__patient">
+          <h2 id="paciente-heading" class="section-title">Paciente</h2>
+          <div class="field-group">
+            <input
+              id="patient-name"
+              class="field-input"
+              type="text"
+              aria-label="Nome do paciente"
+              autocomplete="off"
+              spellcheck="false"
+            >
+          </div>
         </div>
-      </section>
 
-      <section
-        id="medications-section"
-        class="panel-section medications-section"
-        aria-label="Medicamentos"
-      >
-        <div id="medications-grid" class="medications-catalog"></div>
-      </section>
+        <div class="request-meta__quantity">
+          <h2 id="quantidade-heading" class="section-title">Quantidade</h2>
+          <div
+            id="quantity-slider"
+            class="qty-slider"
+            role="slider"
+            aria-valuemin="1"
+            aria-valuenow="1"
+            aria-labelledby="quantidade-heading"
+            tabindex="0"
+          >
+            <div class="qty-slider__stage">
+              <div class="qty-slider__rail">
+                <div class="qty-slider__thumb" id="quantity-thumb">
+                  <div class="qty-slider__card">
+                    <div class="qty-slider__value-row">
+                      <span id="quantity-value" class="qty-slider__value">1</span>
+                      <input
+                        id="quantity-input"
+                        class="qty-slider__input"
+                        type="text"
+                        inputmode="numeric"
+                        pattern="[0-9]*"
+                        aria-label="Quantidade personalizada"
+                        hidden
+                      >
+                    </div>
+                  </div>
+                  <div class="qty-slider__stem" aria-hidden="true"></div>
+                </div>
+
+                <div class="qty-slider__track" id="quantity-track">
+                  <div class="qty-slider__track-fill" id="quantity-fill"></div>
+                  <div class="qty-slider__knob" id="quantity-knob" aria-hidden="true"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section
+      id="medications-section"
+      class="panel card medications-section"
+      aria-label="Medicamentos"
+    >
+      <div id="medications-grid" class="medications-catalog"></div>
     </section>
   </main>
 
