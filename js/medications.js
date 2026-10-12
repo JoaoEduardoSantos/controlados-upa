@@ -40,7 +40,7 @@ const MEDICATIONS = [
   // --- Dor intensa ---
   {
     id: "cetoprofeno-ev-bolsa",
-    label: "Cetoprofeno",
+    label: "Cetoprofeno (PROFENID®)",
     name: "Cetoprofeno (1 mg/mL)",
     drugClass: "AINE",
     order: 1,
@@ -64,7 +64,7 @@ const MEDICATIONS = [
   },
   {
     id: "tramadol-ev-100mg",
-    label: "Tramadol",
+    label: "Tramadol (TRAMAL®)",
     name: "Tramadol (100 mg/2 mL)",
     drugClass: "Opioide",
     order: 3,

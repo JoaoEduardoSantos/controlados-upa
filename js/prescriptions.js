@@ -2,16 +2,16 @@
 
 /**
  * Textos prontos para copiar na prescrição.
- * Cada grupo vira uma seção; cada item é uma linha com botão de copiar.
- * Dentro da seção a ordem é VO, IM, EV e, por último, as demais vias.
+ * Cada grupo vira uma seção. VO, IM e EV da mesma medicação ficam na mesma linha.
+ * Vias fora dessas três ocupam a largura inteira. O clique na linha copia o texto.
  */
 const PRESCRIPTION_TEXTS = [
   {
     id: "analgesico",
     title: "Analgésico",
     items: [
-      { id: "dipirona-vo", text: "DIPIRONA (500 mg/cp) - 1 CP - VO" },
       { id: "paracetamol", text: "PARACETAMOL (500 mg/cp) - 1 CP – VO" },
+      { id: "dipirona-vo", text: "DIPIRONA (500 mg/cp) - 1 CP - VO" },
       { id: "dipirona-im", text: "DIPIRONA (500 mg/mL) - 2 mL - IM" },
       { id: "dipirona-ev", text: "DIPIRONA (500 mg/mL): 2 mL + 8 mL ABD - EV" },
       { id: "tramadol", text: "TRAMADOL (50 mg/mL): 2 mL + 100 mL SF 0,9% - EV – se dor refratária" },
@@ -24,14 +24,18 @@ const PRESCRIPTION_TEXTS = [
     items: [
       { id: "diclofenaco", text: "DICLOFENACO (75 mg/3 mL): 3 mL - IM" },
       { id: "cetoprofeno-im", text: "CETOPROFENO (100 mg/2 mL): 2 mL – IM" },
-      { id: "cetoprofeno-ev", text: "CETOPROFENO (100 mg/2 mL): 2 mL + 100 mL SF 0,9% - EV" }
+      { id: "cetoprofeno-ev", text: "CETOPROFENO (100 mg/2 mL): 2 mL + 100 mL SF 0,9% - EV" },
+      { id: "tenoxicam-2", text: "TENOXICAM (20mg/AMP): pó + 2mL SF 0,9% - IM" },
+      { id: "tenoxicam-20", text: "TENOXICAM (20mg/AMP): pó + 20mL SF 0,9% - EV" }
     ]
   },
   {
     id: "antiespasmodico",
     title: "Antiespasmódico",
     items: [
+      { id: "buscopan-simples-im", text: "BUSCOPAN SIMPLES (20 mg/mL): 1mL – IM" },
       { id: "buscopan-simples", text: "BUSCOPAN SIMPLES (20 mg/mL): 1 mL + 19 mL SF 0,9% – EV" },
+      { id: "buscopan-composto-im", text: "BUSCOPAN COMPOSTO: 5mL – IM" },
       { id: "buscopan-composto", text: "BUSCOPAN COMPOSTO: 5 mL + 100 mL SF 0,9% - EV" }
     ]
   },
@@ -40,9 +44,12 @@ const PRESCRIPTION_TEXTS = [
     title: "Antiemético",
     items: [
       { id: "metoclopramida-vo", text: "METOCLOPRAMIDA (10 mg/cp) - 1 CP - VO" },
-      { id: "ondansetrona-vo", text: "ONDANSETRONA (2 mg/cp) - 1 CP – VO" },
+      { id: "metoclopramida-im", text: "METOCLOPRAMIDA (5 mg/mL): 2mL – IM" },
       { id: "metoclopramida-ev", text: "METOCLOPRAMIDA (5 mg/mL): 2 mL + 8 mL ABD – EV" },
+      { id: "ondansetrona-vo", text: "ONDANSETRONA (2 mg/cp) - 1 CP – VO" },
+      { id: "ondansetrona-im", text: "ONDANSETRONA (2 mg/mL): 2mL – IM" },
       { id: "ondansetrona-ev", text: "ONDANSETRONA (2 mg/mL): 2 mL + 18 mL ABD - EV" },
+      { id: "bromoprida-im", text: "BROMOPRIDA (5 mg/mL): 2mL – IM" },
       { id: "bromoprida", text: "BROMOPRIDA (5 mg/mL): 2 mL + 8 mL ABD - EV" }
     ]
   },
@@ -60,7 +67,9 @@ const PRESCRIPTION_TEXTS = [
     title: "Corticoide",
     items: [
       { id: "dexametasona-im", text: "DEXAMETASONA (4 mg/mL): 2,5 mL - IM" },
+      { id: "hidrocortisona-100-im", text: "HIDROCORTISONA (100 mg/AMP): 1 AMP em 2 mL ABD – IM" },
       { id: "hidrocortisona-100", text: "HIDROCORTISONA (100 mg/AMP): 1 AMP em 20 mL ABD – EV" },
+      { id: "hidrocortisona-500-im", text: "HIDROCORTISONA (500 mg/AMP): 1 AMP em 4 mL ABD – IM" },
       { id: "hidrocortisona-500", text: "HIDROCORTISONA (500 mg/AMP): 1 AMP em 20 mL ABD - EV" },
       { id: "dexametasona-ev", text: "DEXAMETASONA (4 mg/mL): 2,5 mL + 100 mL SF 0,9% - EV" }
     ]
@@ -93,17 +102,13 @@ const PRESCRIPTION_TEXTS = [
       { id: "hidralazina", text: "HIDRALAZINA (50 mg/cp) - 1 CP - VO" },
       { id: "clonidina", text: "CLONIDINA (0,150 mg/cp) - 1 CP - VO" },
       { id: "captopril", text: "CAPTOPRIL (25 mg/cp) - 1 CP - VO" },
-      { id: "anlodipino-5", text: "ANLODIPINO (5 mg/cp) - 1 CP - VO" },
-      { id: "anlodipino-10", text: "ANLODIPINO (10 mg/cp) - 1 CP - VO" },
-      { id: "nifedipino-10", text: "NIFEDIPINO (10 mg/cp) - 1 CP - VO" },
-      { id: "nifedipino-20", text: "NIFEDIPINO (20 mg/cp) - 1 CP - VO" },
-      { id: "atenolol-25", text: "ATENOLOL (25 mg/cp) - 1 CP - VO" },
-      { id: "atenolol-50", text: "ATENOLOL (50 mg/cp) - 1 CP - VO" },
-      { id: "propranolol-20", text: "PROPRANOLOL (20 mg/cp) - 1 CP - VO" },
-      { id: "propranolol-40", text: "PROPRANOLOL (40 mg/cp) - 1 CP - VO" },
+      { id: "anlodipino", text: "ANLODIPINO (5 ou 10 mg/cp) - 1 CP – VO" },
+      { id: "nifedipino", text: "NIFEDIPINO (10 ou 20 mg/cp) - 1 CP – VO" },
+      { id: "atenolol", text: "ATENOLOL (25 ou 50 mg/cp) - 1 CP – VO" },
+      { id: "propranolol", text: "PROPRANOLOL (20 ou 40 mg/cp) - 1 CP – VO" },
       { id: "metoprolol", text: "METOPROLOL (25 mg/cp) - 1 CP - VO" },
-      { id: "carvedilol-3125", text: "CARVEDILOL (3,125 mg/cp) - 1 CP - VO" },
-      { id: "carvedilol-125", text: "CARVEDILOL (12,5 mg/cp) - 1 CP – VO" },
+      { id: "metoprolol-ev", text: "METOPROLOL (1mg/mL): 5mL – EV lento" },
+      { id: "carvedilol", text: "CARVEDILOL (3,125 ou 12,5 mg/cp) - 1 CP – VO" },
       { id: "furosemida", text: "FUROSEMIDA (20 mg/AMP): X AMP – EV" }
     ]
   },
@@ -118,11 +123,10 @@ const PRESCRIPTION_TEXTS = [
     id: "ansiedade-agitacao",
     title: "Ansiedade e agitação",
     items: [
-      { id: "diazepam-5", text: "DIAZEPAM (5 mg/cp) - 1 CP - VO" },
-      { id: "diazepam-10-vo", text: "DIAZEPAM (10 mg/cp) - 1 CP – VO" },
-      { id: "prometazina", text: "PROMETAZINA (25 mg/mL): 2 mL - IM" },
-      { id: "midazolam", text: "MIDAZOLAM (5 mg/mL): 3 mL - IM" },
+      { id: "diazepam-vo", text: "DIAZEPAM (5 ou 10 mg/cp) - 1 CP – VO" },
+      { id: "diazepam-im", text: "DIAZEPAM (5mg/mL): 2mL – IM" },
       { id: "haloperidol", text: "HALOPERIDOL (5 mg/mL): 2 mL - IM" },
+      { id: "prometazina", text: "PROMETAZINA (25 mg/mL): 2 mL - IM" },
       { id: "diazepam-ev", text: "DIAZEPAM (10 mg/2 mL): 2 mL + 8 mL ABD - EV lento (em 2 minutos)" }
     ]
   },
@@ -130,7 +134,6 @@ const PRESCRIPTION_TEXTS = [
     id: "anticonvulsionante",
     title: "Anticonvulsionante",
     items: [
-      { id: "diazepam", text: "DIAZEPAM (5 mg/mL) – 2 mL + 8 mL ABD – EV – ACM" },
       { id: "fenitoina", text: "FENITOÍNA (50 mg/mL): 4 AMP + 250 mL SF 0,9% – EV BIC – ACM" }
     ]
   },
@@ -143,16 +146,10 @@ const PRESCRIPTION_TEXTS = [
     ]
   },
   {
-    id: "antifibrinolitico",
-    title: "Antifibrinolítico",
+    id: "hemostatico",
+    title: "Hemostático",
     items: [
-      { id: "acido-tranexamico", text: "ÁC. TRANEXÂMICO (50 mg/mL): 4 AMP + 100 mL SF 0,9% - EV LIVRE" }
-    ]
-  },
-  {
-    id: "anti-hemorragico",
-    title: "Antihemorrágico",
-    items: [
+      { id: "acido-tranexamico", text: "ÁC. TRANEXÂMICO (50 mg/mL): 4 AMP + 100 mL SF 0,9% - EV LIVRE" },
       { id: "vitamina-k", text: "VITAMINA K (10 mg/mL): 1 mL - IM" }
     ]
   },
@@ -165,10 +162,18 @@ const PRESCRIPTION_TEXTS = [
     ]
   },
   {
+    id: "hipocalemia",
+    title: "Hipocalemia",
+    items: [
+      { id: "kcl-10", text: "KCL (10%): 40 mL + 460 mL SF 0,9% - EV BIC – Correr em 3 horas" },
+      { id: "kcl-19", text: "KCL (19,1%): 20 mL + 480 mL SF 0,9% - EV BIC – Correr em 3 horas" }
+    ]
+  },
+  {
     id: "hipercalemia",
     title: "Hipercalemia",
     items: [
-      { id: "gluc-calcio", text: "GLUC. CÁLCIO (10%) 20 mL + 100 mL SF 0,9% - EV – ACM" },
+      { id: "gluc-calcio", text: "GLUC. CÁLCIO (10%): 20 mL + 100 mL SF 0,9% - EV – ACM" },
       { id: "insulina-regular", text: "INSULINA REGULAR (100 UI/mL): 10 unidades + 500 mL SG 5% + SG 50% 60 mL – EV BIC em 60 minutos – ACM" }
     ]
   },
@@ -197,22 +202,18 @@ const PRESCRIPTION_TEXTS = [
     items: [
       { id: "fenitanil", text: "FENITANIL (50 mcg/mL): 40 mL + 160 mL SF 0,9% - EV BIC - ACM" },
       { id: "midazolam", text: "MIDAZOLAM (5 mg/mL): 40 mL + 160 mL SF 0,9% - EV BIC - ACM" },
-      { id: "fentanil-midazolam", text: "[FENTANIL (50 mcg/mL) 40 mL + MIDAZOLAM (5 mg/mL) 40 mL + 120 mL SF 0,9%] EV BIC - X mL/h" }
+      { id: "fentanil-midazolam", text: "FENTANIL (50 mcg/mL) + MIDAZOLAM (5 mg/mL): 40mL + 40 mL + 120 mL SF 0,9% - EV BIC - X mL/h" }
     ]
   },
   {
     id: "drogas-emergencia",
     title: "Drogas emergência",
     items: [
-      { id: "tridil", text: "TRIDIL (5 mg/mL): 10 mL + 240 mL SF 0,9% - EV BIC - iniciar a 10 mL/h" },
-      { id: "nitrop", text: "NITROP (50 mg/mL): 2 mL + 248 mL SG 5% - EV BIC - iniciar a 5 mL/h" },
       { id: "noradrenalina", text: "NORADRENALINA (2 mg/mL): 16 mL + 184 mL SG 5% - EV BIC - ACM" },
       { id: "dobutamina", text: "DOBUTAMINA (12,5 mg/mL): 20 mL + 230 mL SF 0,9% - EV BIC - ACM" },
       { id: "dopamina", text: "DOPAMINA (5 mg/mL): 50 mL + 200 mL SF 0,9% - EV BIC - ACM" },
-      { id: "noradrenalina-bic", text: "NORADRENALINA (2 mg/mL): 16 mL + 184 mL SG 5% – EV – BIC – ACM" },
-      { id: "dobutamina-bic", text: "DOBUTAMINA (12,5 mg/mL): 20 mL + SF 0,9% 230 mL – EV – BIC – ACM" },
-      { id: "fentanil", text: "FENTANIL (0,0785 mg/mL): 40 mL + SF 0,9% 160 mL – EV – BIC – ACM" },
-      { id: "midazolan", text: "MIDAZOLAN (5 mg/mL): 40 mL + SF0,9% 160 mL – EV – BIC – ACM" }
+      { id: "tridil", text: "TRIDIL (5 mg/mL): 10 mL + 240 mL SF 0,9% - EV BIC - iniciar a 10 mL/h" },
+      { id: "nitrop", text: "NITROP (50 mg/mL): 2 mL + 248 mL SG 5% - EV BIC - iniciar a 5 mL/h" }
     ]
   }
 ];
