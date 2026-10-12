@@ -138,7 +138,7 @@ const MEDICATIONS = [
   },
   {
     id: "haloperidol-im",
-    label: "Haloperidol",
+    label: "Haloperidol (HALDOL®)",
     name: "Haloperidol (10 mg/2 mL)",
     drugClass: "Antipsicótico",
     order: 6,
@@ -152,7 +152,7 @@ const MEDICATIONS = [
   // --- Crise convulsiva ---
   {
     id: "fenitoina-ev",
-    label: "Fenitoína",
+    label: "Fenitoína (HIDANTAL®)",
     name: "Fenitoína (250 mg/5 mL)",
     drugClass: "Anticonvulsivante",
     order: 1,
@@ -164,7 +164,7 @@ const MEDICATIONS = [
   },
   {
     id: "fenobarbital-ev",
-    label: "Fenobarbital",
+    label: "Fenobarbital (GARDENAL®)",
     name: "Fenobarbital (200 mg/2 mL)",
     drugClass: "Barbitúrico",
     order: 2,
@@ -218,7 +218,7 @@ const MEDICATIONS = [
   // --- Sangramentos ---
   {
     id: "acido-tranexamico-ev",
-    label: "Ácido tranexâmico",
+    label: "Ácido tranexâmico (TRANSAMIN®)",
     name: "Ácido tranexâmico (250 mg/5 mL)",
     drugClass: "Antifibrinolítico",
     order: 1,
@@ -233,9 +233,21 @@ const MEDICATIONS = [
   {
     id: "cloreto-potassio-10-ev",
     label: "Cloreto de potássio 10%",
-    name: "Cloreto de potássio (10%) - 10 mL",
+    name: "Cloreto de potássio (10%)",
     drugClass: "Eletrólito",
     order: 1,
+    route: "EV",
+    unitSingular: "ampola",
+    unitPlural: "ampolas",
+    posology: "Ampola de 10 mL",
+    indication: "Hipocalemia",
+  },
+  {
+    id: "cloreto-potassio-19-1-ev",
+    label: "Cloreto de potássio 19,1%",
+    name: "Cloreto de potássio (19,1%)",
+    drugClass: "Eletrólito",
+    order: 2,
     route: "EV",
     unitSingular: "ampola",
     unitPlural: "ampolas",

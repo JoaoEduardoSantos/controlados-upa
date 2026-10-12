@@ -6,7 +6,8 @@ const state = {
   quantity: 1,
   quantityCustom: false,
   downloadInFlight: false,
-  lastDownloadedSignature: null
+  lastDownloadedSignature: null,
+  view: "sheet"
 };
 
 const QUANTITY_SLIDER_MAX = 4;
@@ -830,11 +831,302 @@ function initQuantitySlider() {
   syncQuantitySliderUI();
 }
 
+const copyResetTimers = new WeakMap();
+
+function splitPrescriptionText(text) {
+  const value = String(text || "");
+  const match = value.match(/ – | - |: /);
+
+  if (!match || typeof match.index !== "number") {
+    return { drug: value, rest: "" };
+  }
+
+  if (match[0] === ": ") {
+    return {
+      drug: value.slice(0, match.index + 1).trim(),
+      rest: value.slice(match.index + match[0].length).trim()
+    };
+  }
+
+  return {
+    drug: value.slice(0, match.index).trim(),
+    rest: value.slice(match.index).trim()
+  };
+}
+
+function createCopyIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 15 15");
+  svg.setAttribute("width", "15");
+  svg.setAttribute("height", "15");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML =
+    '<rect x="5.1" y="5.1" width="7.4" height="7.4" rx="1.6" fill="none" stroke="currentColor" stroke-width="1.35"></rect>' +
+    '<path d="M4.3 9.8H3.5A1.5 1.5 0 0 1 2 8.3V3.5A1.5 1.5 0 0 1 3.5 2h4.8A1.5 1.5 0 0 1 9.8 3.5V4.3" fill="none" stroke="currentColor" stroke-width="1.35" stroke-linecap="round"></path>';
+  return svg;
+}
+
+function createCheckIcon() {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 15 15");
+  svg.setAttribute("width", "15");
+  svg.setAttribute("height", "15");
+  svg.setAttribute("aria-hidden", "true");
+  svg.innerHTML =
+    '<path d="M3.2 7.8 6.1 10.6 11.8 4.4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"></path>';
+  return svg;
+}
+
+function setCopyButtonState(button, copied) {
+  button.classList.toggle("is-copied", copied);
+  button.replaceChildren(copied ? createCheckIcon() : createCopyIcon());
+  button.setAttribute(
+    "aria-label",
+    copied ? "Prescrição copiada" : `Copiar prescrição: ${button.dataset.copyText || ""}`
+  );
+}
+
+function copyPrescriptionText(text) {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.top = "0";
+  area.style.left = "0";
+  area.style.opacity = "0";
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  area.setSelectionRange(0, area.value.length);
+
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch (error) {
+    copied = false;
+  }
+
+  area.remove();
+
+  if (copied) {
+    return;
+  }
+
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    return navigator.clipboard.writeText(text);
+  }
+
+  throw new Error("Não foi possível copiar o texto.");
+}
+
+function getPrescriptionRoute(text) {
+  const value = String(text || "");
+
+  if (/\bEV\b/.test(value)) {
+    return "ev";
+  }
+
+  if (/\bIM\b/.test(value)) {
+    return "im";
+  }
+
+  if (/\bVO\b/.test(value)) {
+    return "vo";
+  }
+
+  return "";
+}
+
+const PRESCRIPTION_ROUTE_RANK = {
+  vo: 0,
+  im: 1,
+  ev: 2
+};
+
+function sortPrescriptionItems(items) {
+  return items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => {
+      const rankA = PRESCRIPTION_ROUTE_RANK[getPrescriptionRoute(a.item.text)] ?? 3;
+      const rankB = PRESCRIPTION_ROUTE_RANK[getPrescriptionRoute(b.item.text)] ?? 3;
+      return rankA - rankB || a.index - b.index;
+    })
+    .map((entry) => entry.item);
+}
+
+function createPrescriptionRow(item) {
+  const parts = splitPrescriptionText(item.text);
+  const route = getPrescriptionRoute(item.text);
+  const row = document.createElement("article");
+  row.className = route ? `prescription-row is-${route}` : "prescription-row";
+
+  const text = document.createElement("p");
+  text.className = "prescription-row__text";
+
+  const drug = document.createElement("span");
+  drug.className = "prescription-row__drug";
+  drug.textContent = parts.drug;
+  text.appendChild(drug);
+
+  if (parts.rest) {
+    const rest = document.createElement("span");
+    rest.className = "prescription-row__rest";
+    rest.textContent = parts.rest;
+    text.appendChild(rest);
+  }
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "prescription-row__copy";
+  button.dataset.copyText = item.text;
+
+  setCopyButtonState(button, false);
+
+  button.addEventListener("click", async () => {
+    try {
+      await copyPrescriptionText(item.text);
+      setCopyButtonState(button, true);
+
+      const previousTimer = copyResetTimers.get(button);
+      if (previousTimer) {
+        window.clearTimeout(previousTimer);
+      }
+
+      copyResetTimers.set(
+        button,
+        window.setTimeout(() => {
+          setCopyButtonState(button, false);
+          copyResetTimers.delete(button);
+        }, 1600)
+      );
+    } catch (error) {
+      console.error("[prescriptions] Falha ao copiar.", error);
+      showAppStatus("Não foi possível copiar o texto.", "error");
+    }
+  });
+
+  row.appendChild(text);
+  row.appendChild(button);
+  return row;
+}
+
+function renderPrescriptionCatalog() {
+  const catalog = document.getElementById("prescriptions-catalog");
+
+  if (!catalog || typeof PRESCRIPTION_TEXTS === "undefined") {
+    return;
+  }
+
+  catalog.innerHTML = "";
+
+  PRESCRIPTION_TEXTS.forEach((group, index) => {
+    const section = document.createElement("section");
+    section.className = "medication-group";
+    section.setAttribute("aria-labelledby", `prescription-group-${index}`);
+
+    const heading = document.createElement("h2");
+    heading.id = `prescription-group-${index}`;
+    heading.className = "section-title";
+    heading.textContent = group.title;
+    section.appendChild(heading);
+
+    const list = document.createElement("div");
+    list.className = "prescription-list";
+
+    sortPrescriptionItems(group.items).forEach((item) => {
+      list.appendChild(createPrescriptionRow(item));
+    });
+
+    section.appendChild(list);
+    catalog.appendChild(section);
+  });
+}
+
+function syncViewUI() {
+  const sheetPanel = document.getElementById("medications-section");
+  const prescriptionPanel = document.getElementById("prescriptions-section");
+  const switcher = document.querySelector(".view-switch");
+  const tabs = Array.from(document.querySelectorAll(".view-switch__tab"));
+  const isPrescription = state.view === "prescription";
+
+  if (switcher) {
+    switcher.classList.toggle("is-prescription", isPrescription);
+  }
+
+  tabs.forEach((tab) => {
+    const selected = tab.dataset.view === state.view;
+    tab.setAttribute("aria-selected", selected ? "true" : "false");
+    tab.tabIndex = selected ? 0 : -1;
+  });
+
+  if (sheetPanel) {
+    sheetPanel.hidden = isPrescription;
+  }
+
+  if (prescriptionPanel) {
+    prescriptionPanel.hidden = !isPrescription;
+  }
+}
+
+function selectView(view) {
+  if (view !== "sheet" && view !== "prescription") {
+    return;
+  }
+
+  state.view = view;
+  syncViewUI();
+}
+
+function initViewSwitch() {
+  const tabs = Array.from(document.querySelectorAll(".view-switch__tab"));
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener("click", () => {
+      selectView(tab.dataset.view);
+    });
+
+    tab.addEventListener("keydown", (event) => {
+      const nextKeys = ["ArrowRight", "ArrowDown"];
+      const previousKeys = ["ArrowLeft", "ArrowUp"];
+
+      if (
+        !nextKeys.includes(event.key) &&
+        !previousKeys.includes(event.key) &&
+        event.key !== "Home" &&
+        event.key !== "End"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+
+      let nextIndex = index;
+      if (nextKeys.includes(event.key)) {
+        nextIndex = (index + 1) % tabs.length;
+      } else if (previousKeys.includes(event.key)) {
+        nextIndex = (index - 1 + tabs.length) % tabs.length;
+      } else if (event.key === "Home") {
+        nextIndex = 0;
+      } else if (event.key === "End") {
+        nextIndex = tabs.length - 1;
+      }
+
+      const nextTab = tabs[nextIndex];
+      selectView(nextTab.dataset.view);
+      nextTab.focus();
+    });
+  });
+
+  syncViewUI();
+}
+
 function initApp() {
   initUnitHeader();
   initPatientField();
   initQuantitySlider();
+  initViewSwitch();
   syncMedicationUI();
+  renderPrescriptionCatalog();
 
   const patientInput = document.getElementById("patient-name");
   if (patientInput) {
